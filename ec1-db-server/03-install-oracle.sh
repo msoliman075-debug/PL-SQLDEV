@@ -76,6 +76,9 @@ echo ""
 log_info "Step 4: Running Oracle Installer (silent mode)..."
 log_warn "This may take 10-15 minutes..."
 
+# Set CV_ASSUME_DISTID to bypass Oracle Linux 8 detection issue
+export CV_ASSUME_DISTID=OEL7.8
+
 cd $ORACLE_HOME
 ./runInstaller -silent -responseFile /home/oracle/stage/db_install.rsp \
     -ignorePrereqFailure -waitforcompletion
