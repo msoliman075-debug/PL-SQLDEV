@@ -146,9 +146,6 @@ firewall-cmd --permanent --add-port=5500/tcp
 # Open additional ports if needed
 firewall-cmd --permanent --add-port=5501/tcp
 
-# Allow Oracle Net traffic
-firewall-cmd --permanent --add-service=oracle
-
 # Reload firewall to apply changes
 firewall-cmd --reload
 
@@ -156,9 +153,6 @@ log_info "Firewall configured ✓"
 echo ""
 echo "Open ports:"
 firewall-cmd --list-ports
-echo ""
-echo "Active services:"
-firewall-cmd --list-services
 
 echo ""
 log_info "Step 10: Configuring SELinux..."

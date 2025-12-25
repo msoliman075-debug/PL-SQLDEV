@@ -60,16 +60,12 @@ firewall-cmd --permanent --add-port=5501/tcp
 log_info "Port 5501/tcp opened ✓"
 
 echo ""
-log_info "Step 4: Adding Oracle service (if available)..."
-firewall-cmd --permanent --add-service=oracle 2>/dev/null || log_warn "Oracle service not predefined, using ports instead"
-
-echo ""
-log_info "Step 5: Reloading firewall..."
+log_info "Step 4: Reloading firewall..."
 firewall-cmd --reload
 log_info "Firewall reloaded ✓"
 
 echo ""
-log_info "Step 6: Verifying configuration..."
+log_info "Step 5: Verifying configuration..."
 echo ""
 echo "=== Active Zones ==="
 firewall-cmd --get-active-zones
@@ -84,7 +80,7 @@ echo "=== Rich Rules ==="
 firewall-cmd --list-rich-rules 2>/dev/null || echo "No rich rules configured"
 
 echo ""
-log_info "Step 7: Testing port availability..."
+log_info "Step 6: Testing port availability..."
 if ss -tlnp | grep -q ":1521"; then
     log_info "Port 1521 is listening ✓"
 else
