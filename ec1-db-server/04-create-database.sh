@@ -39,8 +39,9 @@ echo "  PDB Name:    apex_pdb"
 echo "  Data Dir:    /u02/oradata"
 
 echo ""
-log_info "Step 1: Creating listener configuration..."
+log_info "Step 1: Checking/Creating listener configuration..."
 
+# Create listener.ora if not exists or update it
 cat > $ORACLE_HOME/network/admin/listener.ora << 'EOF'
 # Listener configured to accept connections from any IP
 LISTENER =
@@ -51,7 +52,6 @@ LISTENER =
     )
   )
 
-# Enable external procedure calls
 SID_LIST_LISTENER =
   (SID_LIST =
     (SID_DESC =
@@ -69,11 +69,10 @@ SID_LIST_LISTENER =
 ADR_BASE_LISTENER = /u01/app/oracle
 EOF
 
-# Get server hostname and IP for tnsnames
+# Get server IP for tnsnames
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 cat > $ORACLE_HOME/network/admin/tnsnames.ora << EOF
-# Local connections
 ORCL =
   (DESCRIPTION =
     (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
@@ -92,7 +91,6 @@ APEX_PDB =
     )
   )
 
-# Remote connections (using server IP: $SERVER_IP)
 ORCL_REMOTE =
   (DESCRIPTION =
     (ADDRESS = (PROTOCOL = TCP)(HOST = $SERVER_IP)(PORT = 1521))
@@ -115,13 +113,70 @@ EOF
 log_info "Listener configuration created ✓"
 
 echo ""
-log_info "Step 2: Starting listener..."
-lsnrctl start
-log_info "Listener started ✓"
+log_info "Step 2: Checking listener status..."
+
+# Check if listener is running
+if lsnrctl status >/dev/null 2>&1; then
+    log_info "Listener already running ✓"
+else
+    log_info "Starting listener..."
+    lsnrctl start
+    log_info "Listener started ✓"
+fi
 
 echo ""
-log_info "Step 3: Creating database using DBCA..."
+log_info "Step 3: Checking if database already exists..."
+
+# Check if database already exists
+if [[ -d "/u02/oradata/ORCL" ]] && pgrep -f "ora_pmon_ORCL" >/dev/null 2>&1; then
+    log_warn "Database ORCL already exists and is running!"
+    log_info "Skipping database creation."
+    
+    # Verify PDB status
+    sqlplus -s / as sysdba << 'EOSQL'
+SET LINESIZE 100
+SET PAGESIZE 50
+PROMPT
+PROMPT === CDB Information ===
+SELECT NAME, OPEN_MODE, CDB FROM V$DATABASE;
+PROMPT
+PROMPT === PDB Information ===
+SHOW PDBS
+EXIT;
+EOSQL
+    
+    echo ""
+    log_info "If you want to recreate the database, run reset-all.sh first"
+    exit 0
+fi
+
+# Check if datafiles exist but database not running
+if [[ -d "/u02/oradata/ORCL" ]]; then
+    log_warn "Database files exist but database not running."
+    log_warn "Attempting to start existing database..."
+    
+    sqlplus / as sysdba << 'EOSQL'
+STARTUP;
+ALTER PLUGGABLE DATABASE ALL OPEN;
+EXIT;
+EOSQL
+    
+    if pgrep -f "ora_pmon_ORCL" >/dev/null 2>&1; then
+        log_info "Existing database started successfully ✓"
+        exit 0
+    else
+        log_error "Failed to start existing database."
+        log_error "Run reset-all.sh to clean up and recreate."
+        exit 1
+    fi
+fi
+
+echo ""
+log_info "Step 4: Creating database using DBCA..."
 log_warn "This will take 15-30 minutes. Please wait..."
+
+# Set CV_ASSUME_DISTID for OL8 compatibility
+export CV_ASSUME_DISTID=OEL7.8
 
 dbca -silent -createDatabase \
     -templateName General_Purpose.dbc \
@@ -156,7 +211,7 @@ fi
 log_info "Database created successfully ✓"
 
 echo ""
-log_info "Step 4: Configuring PDB auto-open..."
+log_info "Step 5: Configuring PDB auto-open..."
 
 sqlplus -s / as sysdba << 'EOSQL'
 SET ECHO OFF
@@ -182,7 +237,7 @@ EOSQL
 log_info "PDB auto-open configured ✓"
 
 echo ""
-log_info "Step 5: Verifying database..."
+log_info "Step 6: Verifying database..."
 
 sqlplus -s / as sysdba << 'EOSQL'
 SET LINESIZE 100
@@ -196,12 +251,12 @@ PROMPT
 PROMPT === PDB Information ===
 SHOW PDBS
 
-PROMPT
-PROMPT === Listener Services ===
 EXIT;
 EOSQL
 
-lsnrctl status
+echo ""
+log_info "Listener services:"
+lsnrctl status | grep -E "Service|Instance" || true
 
 echo ""
 log_info "=============================================="
@@ -211,5 +266,5 @@ log_info "CDB: ORCL"
 log_info "PDB: apex_pdb"
 log_info "SYS Password: $SYS_PASSWORD"
 log_info ""
-log_info "Next: Run 05-install-apex.sh"
+log_info "Next: Run ./05-install-apex.sh"
 log_info "=============================================="
