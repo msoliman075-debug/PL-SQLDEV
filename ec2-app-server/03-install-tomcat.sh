@@ -26,7 +26,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-TOMCAT_VERSION="9.0.97"
+TOMCAT_VERSION="9.0.113"
 TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
 TOMCAT_HOME="/opt/tomcat"
 
