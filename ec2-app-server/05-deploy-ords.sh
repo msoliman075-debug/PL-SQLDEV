@@ -5,7 +5,7 @@
 # Server: EC2 (80.238.234.247) - Ubuntu 24.04
 # Run as: root
 ###############################################################################
-set -euo pipefail
+set -eo pipefail
 
 echo "=============================================="
 echo "ORDS Deployment to Tomcat"

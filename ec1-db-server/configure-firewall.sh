@@ -9,7 +9,7 @@
 #   - EC2 App Server (80.238.234.247)
 #   - Your local machine (any IP)
 ###############################################################################
-set -euo pipefail
+set -eo pipefail
 
 echo "=============================================="
 echo "Oracle Linux 8 Firewall Configuration"

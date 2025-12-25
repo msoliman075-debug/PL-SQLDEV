@@ -5,7 +5,7 @@
 # Server: EC2 (80.238.234.247) - Ubuntu 24.04
 # Run as: root (sudo su -)
 ###############################################################################
-set -euo pipefail
+set -eo pipefail
 
 echo "=============================================="
 echo "EC2 System Prerequisites Setup"

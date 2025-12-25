@@ -5,7 +5,7 @@
 # Server: EC1 (80.238.214.217)
 # Run as: oracle or root
 ###############################################################################
-set -euo pipefail
+set -eo pipefail
 
 echo "=============================================="
 echo "Remote Access Verification"

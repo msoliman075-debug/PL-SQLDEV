@@ -5,7 +5,7 @@
 # Server: EC1 (80.238.214.217)
 # Run as: root
 ###############################################################################
-set -euo pipefail
+set -eo pipefail
 
 echo "=============================================="
 echo "Oracle Database 19c Prerequisites Setup"
