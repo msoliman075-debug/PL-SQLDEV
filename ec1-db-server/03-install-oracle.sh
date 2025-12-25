@@ -37,6 +37,10 @@ echo "  ORACLE_BASE: $ORACLE_BASE"
 echo "  ORACLE_HOME: $ORACLE_HOME"
 echo "  ORACLE_SID:  $ORACLE_SID"
 
+# Set CV_ASSUME_DISTID to bypass Oracle Linux 8 detection issue
+export CV_ASSUME_DISTID=OEL7.8
+log_info "Set CV_ASSUME_DISTID=OEL7.8 for OL8 compatibility"
+
 echo ""
 log_info "Step 1: Checking installation files..."
 if [[ ! -f "/home/oracle/stage/LINUX.X64_193000_db_home.zip" ]]; then
@@ -47,10 +51,15 @@ fi
 log_info "Installation file found ✓"
 
 echo ""
-log_info "Step 2: Extracting Oracle software to ORACLE_HOME..."
-cd $ORACLE_HOME
-unzip -oq /home/oracle/stage/LINUX.X64_193000_db_home.zip
-log_info "Extraction complete ✓"
+log_info "Step 2: Checking if extraction needed..."
+if [[ -f "$ORACLE_HOME/runInstaller" ]]; then
+    log_info "Oracle software already extracted, skipping extraction ✓"
+else
+    log_info "Extracting Oracle software to ORACLE_HOME..."
+    cd $ORACLE_HOME
+    unzip -oq /home/oracle/stage/LINUX.X64_193000_db_home.zip
+    log_info "Extraction complete ✓"
+fi
 
 echo ""
 log_info "Step 3: Creating response file..."
@@ -76,9 +85,6 @@ echo ""
 log_info "Step 4: Running Oracle Installer (silent mode)..."
 log_warn "This may take 10-15 minutes..."
 
-# Set CV_ASSUME_DISTID to bypass Oracle Linux 8 detection issue
-export CV_ASSUME_DISTID=OEL7.8
-
 cd $ORACLE_HOME
 ./runInstaller -silent -responseFile /home/oracle/stage/db_install.rsp \
     -ignorePrereqFailure -waitforcompletion
@@ -96,9 +102,9 @@ if [[ $INSTALLER_EXIT -eq 0 ]] || [[ $INSTALLER_EXIT -eq 6 ]]; then
     echo "  sudo /u01/app/oraInventory/orainstRoot.sh"
     echo "  sudo /u01/app/oracle/product/19.3.0/dbhome_1/root.sh"
     echo ""
-    log_info "After running root scripts, execute: 04-create-database.sh"
+    log_info "After running root scripts, execute: ./04-create-database.sh"
 else
     log_error "Installation failed with exit code: $INSTALLER_EXIT"
-    log_error "Check log files in: $ORACLE_BASE/oraInventory/logs/"
+    log_error "Check log files in: /u01/app/oraInventory/logs/"
     exit 1
 fi
