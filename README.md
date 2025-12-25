@@ -175,16 +175,69 @@ nc -zv 80.238.214.217 1521
 
 ---
 
+## Firewall Configuration (EC1)
+
+The firewall is configured in `02-prerequisites.sh` to allow remote connections. You can also run independently:
+
+```bash
+# [root] Configure firewall for remote access
+./ec1-db-server/configure-firewall.sh
+
+# [oracle/root] Verify remote access is working
+./ec1-db-server/verify-remote-access.sh
+```
+
+### Open Ports on EC1
+| Port | Service |
+|------|---------|
+| 1521/tcp | Oracle Listener (DB connections) |
+| 5500/tcp | Enterprise Manager Express |
+| 5501/tcp | Additional EM port |
+
+### Remote Connection Examples
+
+**SQL*Plus from local machine:**
+```bash
+sqlplus sys/Oracle123@80.238.214.217:1521/apex_pdb as sysdba
+```
+
+**SQL Developer / DBeaver:**
+```
+Host: 80.238.214.217
+Port: 1521
+Service: apex_pdb
+User: SYS (as SYSDBA) or SYSTEM
+```
+
+**JDBC URL:**
+```
+jdbc:oracle:thin:@80.238.214.217:1521/apex_pdb
+```
+
+**TNS Entry (add to local tnsnames.ora):**
+```
+APEX_PDB_REMOTE =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 80.238.214.217)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = apex_pdb)
+    )
+  )
+```
+
+---
+
 ## Security Notes
 
-1. Restrict port 1521 on EC1 to only accept connections from EC2:
+1. **Change all default passwords immediately after setup**
+
+2. For production, restrict port 1521 to specific IPs only:
    ```bash
-   # On EC1 [root]
+   # On EC1 [root] - restrict to EC2 only (blocks your local access)
    firewall-cmd --permanent --remove-port=1521/tcp
    firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="80.238.234.247" port port="1521" protocol="tcp" accept'
    firewall-cmd --reload
    ```
-
-2. Change all default passwords immediately after setup
 
 3. Consider enabling HTTPS for ORDS/Tomcat in production

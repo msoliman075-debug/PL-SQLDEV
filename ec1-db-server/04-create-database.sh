@@ -42,6 +42,7 @@ echo ""
 log_info "Step 1: Creating listener configuration..."
 
 cat > $ORACLE_HOME/network/admin/listener.ora << 'EOF'
+# Listener configured to accept connections from any IP
 LISTENER =
   (DESCRIPTION_LIST =
     (DESCRIPTION =
@@ -50,10 +51,29 @@ LISTENER =
     )
   )
 
+# Enable external procedure calls
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = ORCL)
+      (ORACLE_HOME = /u01/app/oracle/product/19.3.0/dbhome_1)
+      (SID_NAME = ORCL)
+    )
+    (SID_DESC =
+      (GLOBAL_DBNAME = apex_pdb)
+      (ORACLE_HOME = /u01/app/oracle/product/19.3.0/dbhome_1)
+      (SID_NAME = ORCL)
+    )
+  )
+
 ADR_BASE_LISTENER = /u01/app/oracle
 EOF
 
-cat > $ORACLE_HOME/network/admin/tnsnames.ora << 'EOF'
+# Get server hostname and IP for tnsnames
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
+cat > $ORACLE_HOME/network/admin/tnsnames.ora << EOF
+# Local connections
 ORCL =
   (DESCRIPTION =
     (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
@@ -66,6 +86,25 @@ ORCL =
 APEX_PDB =
   (DESCRIPTION =
     (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = apex_pdb)
+    )
+  )
+
+# Remote connections (using server IP: $SERVER_IP)
+ORCL_REMOTE =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = $SERVER_IP)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = ORCL)
+    )
+  )
+
+APEX_PDB_REMOTE =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = $SERVER_IP)(PORT = 1521))
     (CONNECT_DATA =
       (SERVER = DEDICATED)
       (SERVICE_NAME = apex_pdb)

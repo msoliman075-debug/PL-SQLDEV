@@ -131,12 +131,34 @@ chown oracle:oinstall /home/oracle/.bash_profile
 log_info "Environment file created ✓"
 
 echo ""
-log_info "Step 9: Configuring firewall..."
+log_info "Step 9: Configuring firewall for remote access..."
+
+# Ensure firewalld is running
+systemctl start firewalld
+systemctl enable firewalld
+
+# Open Oracle listener port (remote DB connections)
 firewall-cmd --permanent --add-port=1521/tcp
+
+# Open Enterprise Manager Express port
 firewall-cmd --permanent --add-port=5500/tcp
+
+# Open additional ports if needed
+firewall-cmd --permanent --add-port=5501/tcp
+
+# Allow Oracle Net traffic
+firewall-cmd --permanent --add-service=oracle
+
+# Reload firewall to apply changes
 firewall-cmd --reload
+
 log_info "Firewall configured ✓"
+echo ""
+echo "Open ports:"
 firewall-cmd --list-ports
+echo ""
+echo "Active services:"
+firewall-cmd --list-services
 
 echo ""
 log_info "Step 10: Configuring SELinux..."
