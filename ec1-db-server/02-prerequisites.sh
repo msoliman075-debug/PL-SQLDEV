@@ -39,14 +39,27 @@ dnf install -y bc binutils compat-openssl10 elfutils-libelf \
     libxcb make smartmontools sysstat unzip wget net-tools vim tar
 
 echo ""
-log_info "Step 3: Verifying oracle user..."
+log_info "Step 3: Verifying and configuring oracle user..."
 if id oracle &>/dev/null; then
     log_info "Oracle user exists ✓"
-    id oracle
 else
-    log_error "Oracle user not created!"
-    exit 1
+    log_info "Creating oracle user..."
+    groupadd -g 54321 oinstall 2>/dev/null || true
+    groupadd -g 54322 dba 2>/dev/null || true
+    groupadd -g 54323 oper 2>/dev/null || true
+    groupadd -g 54324 backupdba 2>/dev/null || true
+    groupadd -g 54325 dgdba 2>/dev/null || true
+    groupadd -g 54326 kmdba 2>/dev/null || true
+    groupadd -g 54330 racdba 2>/dev/null || true
+    useradd -u 54321 -g oinstall -G dba,oper,backupdba,dgdba,kmdba,racdba oracle
 fi
+
+# Ensure oracle is member of ALL required groups
+log_info "Ensuring oracle user has all required groups..."
+usermod -a -G oinstall,dba,oper,backupdba,dgdba,kmdba,racdba oracle
+
+# Verify groups
+id oracle
 
 echo ""
 log_info "Step 4: Creating Oracle directories..."
