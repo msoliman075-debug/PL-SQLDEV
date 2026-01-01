@@ -1,0 +1,45 @@
+# Oracle AI Agent Configuration
+# WARNING: Do not store credentials here - use environment variables
+
+oracle:
+  # Connection string - credentials from environment
+  host: "${ORACLE_HOST:-localhost}"
+  port: ${ORACLE_PORT:-1521}
+  service_name: "${ORACLE_SERVICE:-ORCL}"
+  # Optional: Wallet for mTLS
+  wallet_path: "${ORACLE_WALLET_PATH:-}"
+
+forms:
+  oracle_home: "${FORMS_ORACLE_HOME:-/u01/oracle/middleware}"
+  domain_home: "${FORMS_DOMAIN_HOME:-/u01/oracle/config/domains/forms}"
+  source_path: "${FORMS_SOURCE_PATH:-/u01/forms/source}"
+
+llm:
+  provider: openai
+  model: gpt-4o
+  temperature: 0
+  max_tokens: 4096
+
+git:
+  repo_path: "${GIT_REPO_PATH:-/opt/oracle/plsql-repo}"
+  auto_commit: false
+  branch_prefix: "ai-dev/"
+
+logging:
+  level: INFO
+  file: logs/oracle_agent.log
+
+standards:
+  plsql:
+    naming:
+      package_prefix: "PKG_"
+      procedure_prefix: "PRC_"
+      function_prefix: "FNC_"
+      type_prefix: "TYP_"
+    bulk_threshold: 100
+    max_line_length: 120
+  forms:
+    naming:
+      block_prefix: "BLK_"
+      item_prefix: "ITM_"
+      canvas_prefix: "CNV_"

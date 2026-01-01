@@ -1,0 +1,22 @@
+# Environment
+.env
+*.env.local
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+logs/
+*.log
+
+# Oracle
+*.fmx
+*.mmx
+*.plx
+wallet/
+
+# IDE
+.idea/
+.vscode/
+*.swp
