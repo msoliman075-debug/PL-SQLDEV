@@ -1,0 +1,460 @@
+/*******************************************************************************
+ * Oracle APEX Dynamic Authorization Scheme
+ * Installation Manifest
+ * 
+ * Purpose: Quick reference guide for all project files
+ * Date: January 2026
+ ******************************************************************************/
+
+================================================================================
+INSTALLATION ORDER & FILE MANIFEST
+================================================================================
+
+QUICK START (Recommended for most users)
+----------------------------------------
+Execute this single file to install everything:
+  
+  ► 00_Quick_Start_Install.sql
+    - Calls all other scripts automatically
+    - Includes validation checks
+    - Creates sample data
+    - Runs tests
+    - Provides installation summary
+
+MANUAL INSTALLATION (For advanced users or custom installations)
+----------------------------------------------------------------
+Execute files in this exact order:
+
+  1. ► 01_DDL_Authorization_Tables.sql
+     Purpose: Creates all database tables and indexes
+     Objects: 9 tables with constraints and indexes
+     Time: ~1-2 minutes
+     Prerequisites: CREATE TABLE privilege
+     
+  2. ► 02_PKG_SPEC_Authorization.sql
+     Purpose: Creates package specification (API definition)
+     Objects: 1 package specification
+     Time: <10 seconds
+     Prerequisites: CREATE PROCEDURE privilege
+     
+  3. ► 03_PKG_BODY_Authorization.sql
+     Purpose: Creates package body (implementation)
+     Objects: 1 package body
+     Time: ~30 seconds
+     Prerequisites: Package spec created, APEX installed
+     
+  4. ► 04_Sample_Data_and_Tests.sql (OPTIONAL)
+     Purpose: Creates sample data and runs tests
+     Objects: Sample roles, users, permissions
+     Time: ~30 seconds
+     Prerequisites: Tables and package created
+     Note: Safe to re-run, will skip existing data
+     
+  5. ► 06_Utility_Views.sql (OPTIONAL)
+     Purpose: Creates reporting and admin views
+     Objects: 10 views
+     Time: ~10 seconds
+     Prerequisites: Tables created
+     Note: Helpful for administration and monitoring
+
+DOCUMENTATION FILES
+-------------------
+
+  ► README.md
+    - Project overview and features
+    - Quick start guide
+    - Usage examples with code
+    - Configuration options
+    - Monitoring and troubleshooting
+    - Best for: Developers and architects
+    - Format: Markdown (readable in any text editor)
+    
+  ► 05_Implementation_Guide.txt
+    - Step-by-step implementation instructions
+    - Detailed APEX configuration
+    - All object type configurations (Page, Region, Button, Menu)
+    - Common use cases with complete examples
+    - Performance tuning guide
+    - Comprehensive troubleshooting section
+    - Best for: APEX developers implementing the system
+    - Format: Plain text (80 character width)
+    
+  ► PROJECT_SUMMARY.txt
+    - Complete project overview
+    - All deliverables listed
+    - Feature checklist
+    - Production deployment checklist
+    - Maintenance guide
+    - Best for: Project managers and stakeholders
+    - Format: Plain text
+
+FILE DETAILS
+================================================================================
+
+00_Quick_Start_Install.sql
+--------------------------
+Lines: ~500
+Purpose: One-click installation
+Features:
+  - Executes all DDL scripts
+  - Creates package
+  - Initializes system
+  - Creates sample users
+  - Registers sample objects
+  - Runs validation tests
+  - Provides summary report
+Usage: 
+  SQL> @00_Quick_Start_Install.sql
+Customization:
+  - Edit DEFINE v_app_id = 100 (line ~30)
+  - Comment out sample user creation if not needed
+
+01_DDL_Authorization_Tables.sql
+--------------------------------
+Lines: ~450
+Creates:
+  - APEX_AUTH_ROLES (Authorization roles)
+  - APEX_AUTH_USERS (User accounts)
+  - APEX_AUTH_USER_ROLES (User-role assignments)
+  - APEX_AUTH_OBJECTS (Secureable objects)
+  - APEX_AUTH_PERMISSIONS (Permission types)
+  - APEX_AUTH_ROLE_PERMISSIONS (Role-based permissions)
+  - APEX_AUTH_USER_PERMISSIONS (User overrides)
+  - APEX_AUTH_AUDIT_LOG (Audit trail)
+  - APEX_AUTH_CONFIG (System configuration)
+Features:
+  - Identity columns (Oracle 12c+)
+  - Foreign key constraints
+  - Check constraints
+  - Indexes for performance
+  - Default configuration values
+Notes:
+  - For Oracle < 12c, uncomment sequences section
+  - All tables use VARCHAR2 for maximum compatibility
+
+02_PKG_SPEC_Authorization.sql
+------------------------------
+Lines: ~600
+Defines:
+  - 13 authorization functions
+  - 17 management procedures
+  - 7 custom exceptions
+  - Type definitions
+  - Constants
+Key Functions:
+  - is_authorized (main function)
+  - is_page_authorized
+  - is_region_authorized
+  - is_button_authorized
+  - is_menu_authorized
+  - has_role, has_any_role, has_all_roles
+Management Procedures:
+  - create_role, update_role, delete_role
+  - create_user, update_user
+  - assign_role_to_user, remove_role_from_user
+  - register_object
+  - grant_permission, revoke_permission
+  - grant_user_permission
+Features:
+  - Full parameter documentation
+  - Return type specifications
+  - Default parameter values
+
+03_PKG_BODY_Authorization.sql
+------------------------------
+Lines: ~1,800
+Implements:
+  - All functions from specification
+  - Private helper functions
+  - Caching mechanism
+  - Audit logging
+  - Error handling
+Features:
+  - Session-based cache
+  - Autonomous transaction logging
+  - Super admin bypass
+  - Default permission policy
+  - Comprehensive error messages
+  - NULL-safe comparisons
+Performance:
+  - Optimized queries
+  - Minimal database calls
+  - Efficient joins
+  - Cache reduces redundant checks
+
+04_Sample_Data_and_Tests.sql
+-----------------------------
+Lines: ~500
+Creates:
+  - Default roles (SUPERADMIN, ADMIN, MANAGER, USER, GUEST)
+  - Default permissions (VIEW, EDIT, DELETE, EXECUTE, ADMIN)
+  - Sample users (4 users)
+  - Sample objects (pages, regions, buttons, menus)
+  - Permission grants
+Tests:
+  - Role assignment verification
+  - Page authorization checks
+  - Button authorization checks
+  - Region authorization checks
+  - Role membership checks
+Output:
+  - SQL*Plus formatted results
+  - Success/failure indicators
+  - Summary reports
+
+05_Implementation_Guide.txt
+----------------------------
+Lines: ~800
+Sections:
+  1. Installation Steps
+  2. APEX Authorization Scheme Configuration
+  3. Page-Level Authorization
+  4. Region-Level Authorization
+  5. Button-Level Authorization
+  6. Menu Item Authorization
+  7. Dynamic Authorization Management
+  8. Common Use Cases
+  9. Performance Considerations
+  10. Troubleshooting
+Features:
+  - Step-by-step instructions
+  - Code examples for every scenario
+  - Screenshots descriptions
+  - Best practices
+  - Common pitfalls to avoid
+
+06_Utility_Views.sql
+--------------------
+Lines: ~450
+Creates 10 Views:
+  1. APEX_AUTH_V_USER_ROLES (User role assignments)
+  2. APEX_AUTH_V_ROLE_PERMISSIONS (Permission matrix)
+  3. APEX_AUTH_V_USER_PERMISSIONS (Effective permissions)
+  4. APEX_AUTH_V_AUDIT_SUMMARY (Daily audit summary)
+  5. APEX_AUTH_V_ACTIVE_USERS (Active users with roles)
+  6. APEX_AUTH_V_OBJECT_SECURITY (Security by object)
+  7. APEX_AUTH_V_RECENT_DENIALS (Access denials)
+  8. APEX_AUTH_V_EXPIRING_ROLES (Expiring access)
+  9. APEX_AUTH_V_USERS_WITHOUT_ROLES (Unassigned users)
+  10. APEX_AUTH_V_CONFIG (Configuration display)
+Purpose:
+  - Simplified reporting
+  - Administrative dashboards
+  - Security monitoring
+  - Access reviews
+
+README.md
+---------
+Lines: ~600
+Sections:
+  - Features overview
+  - Prerequisites
+  - Quick Start
+  - APEX Configuration
+  - Usage Examples
+  - Database Schema
+  - Key Functions
+  - Configuration Options
+  - Monitoring & Audit
+  - Performance Tips
+  - Troubleshooting
+  - Architecture
+Format: GitHub-flavored Markdown
+Features:
+  - Code syntax highlighting
+  - Tables and lists
+  - Emoji indicators
+  - Quick reference tables
+
+PROJECT_SUMMARY.txt
+-------------------
+Lines: ~700
+Sections:
+  - Project Overview
+  - Deliverables
+  - Features Implemented
+  - Installation Instructions
+  - APEX Configuration
+  - Common Use Cases
+  - Configuration Options
+  - Monitoring & Reporting
+  - Performance Considerations
+  - Testing & Validation
+  - Troubleshooting
+  - Maintenance
+  - Technical Specifications
+  - Production Deployment Checklist
+  - Customization Opportunities
+Purpose: Executive summary and project documentation
+
+INSTALLATION VERIFICATION
+================================================================================
+
+After installation, verify with these queries:
+
+1. Check all objects created:
+   
+   SELECT object_name, object_type, status
+   FROM user_objects
+   WHERE object_name LIKE 'APEX_AUTH%'
+   ORDER BY object_type, object_name;
+   
+   Expected: 11+ objects (9 tables, 1 package, 10 views), all VALID
+
+2. Check for compilation errors:
+   
+   SELECT name, type, line, position, text
+   FROM user_errors
+   WHERE name LIKE 'APEX_AUTH%'
+   ORDER BY name, sequence;
+   
+   Expected: No rows returned
+
+3. Check configuration:
+   
+   SELECT * FROM apex_auth_config;
+   
+   Expected: 4 rows (ENABLE_AUDIT_LOG, DEFAULT_PERMISSION, 
+                     CACHE_TIMEOUT_SECONDS, SUPERADMIN_ROLE)
+
+4. Check default roles:
+   
+   SELECT role_code, role_name FROM apex_auth_roles
+   ORDER BY role_code;
+   
+   Expected: 5 roles (ADMIN, GUEST, MANAGER, SUPERADMIN, USER)
+
+5. Check default permissions:
+   
+   SELECT permission_code, permission_type FROM apex_auth_permissions
+   ORDER BY permission_code;
+   
+   Expected: 5 permissions (ADMIN, DELETE, EDIT, EXECUTE, VIEW)
+
+SYSTEM REQUIREMENTS
+================================================================================
+
+Database:
+  - Oracle Database 19c or higher (19.1+)
+  - Oracle APEX 19.1 or higher installed
+  - 10 MB database space (minimum)
+  - 50 MB recommended for audit log growth
+
+Privileges Required:
+  - CREATE TABLE
+  - CREATE SEQUENCE (for Oracle < 12c)
+  - CREATE PROCEDURE
+  - CREATE VIEW
+  - EXECUTE on APEX_APPLICATION (granted by APEX installation)
+
+Performance Requirements:
+  - Keep statistics updated (DBMS_STATS)
+  - Monitor audit log size
+  - Consider partitioning audit log for high-volume systems
+
+SUPPORT INFORMATION
+================================================================================
+
+For issues, consult in this order:
+
+1. README.md - Common issues and quick solutions
+2. 05_Implementation_Guide.txt - Detailed troubleshooting section
+3. Query user_errors view for compilation errors
+4. Review audit log for authorization failures
+5. Check configuration settings
+
+Common Issues:
+
+Issue: Package won't compile
+Solution: Verify APEX is installed, check user_errors
+
+Issue: Authorization always fails
+Solution: Check user exists, role assigned, object registered, permission granted
+
+Issue: Changes don't take effect
+Solution: Clear cache with clear_cache() procedure
+
+Issue: Audit log not populating
+Solution: Enable via set_config('ENABLE_AUDIT_LOG', 'Y')
+
+MAINTENANCE SCHEDULE
+================================================================================
+
+Daily:
+  - Monitor APEX_AUTH_V_RECENT_DENIALS for security issues
+
+Weekly:
+  - Review APEX_AUTH_V_EXPIRING_ROLES
+  - Check for users without roles
+
+Monthly:
+  - Archive audit log older than 90 days
+  - Update database statistics
+  - Review and clean up unused objects
+  - Verify all role assignments are still valid
+
+Quarterly:
+  - Review all role definitions
+  - Audit permission grants
+  - Test backup and restore procedures
+  - Review performance metrics
+
+BACKUP RECOMMENDATIONS
+================================================================================
+
+Include these objects in database backups:
+  - All APEX_AUTH_* tables
+  - APEX_AUTHORIZATION_PKG package
+  - APEX_AUTH_V_* views (optional, can be recreated)
+
+Critical data for export:
+  - APEX_AUTH_ROLES
+  - APEX_AUTH_USERS
+  - APEX_AUTH_USER_ROLES
+  - APEX_AUTH_OBJECTS
+  - APEX_AUTH_ROLE_PERMISSIONS
+  - APEX_AUTH_CONFIG
+
+Export command example:
+  expdp user/pass TABLES=APEX_AUTH_ROLES,APEX_AUTH_USERS,APEX_AUTH_USER_ROLES,
+        APEX_AUTH_OBJECTS,APEX_AUTH_ROLE_PERMISSIONS,APEX_AUTH_CONFIG
+        DIRECTORY=backup_dir DUMPFILE=auth_backup.dmp
+
+VERSION CONTROL
+================================================================================
+
+All files in this package:
+  Version: 1.0
+  Date: January 2026
+  Compatible: Oracle 19c+, APEX 19.1+
+  
+Track changes to:
+  - Custom roles created
+  - Permission policies
+  - Configuration changes
+  - User-specific overrides
+
+GETTING STARTED CHECKLIST
+================================================================================
+
+□ Review README.md
+□ Execute 00_Quick_Start_Install.sql
+□ Verify all objects created successfully
+□ Review default configuration
+□ Update Application ID in registration examples
+□ Create APEX Authorization Scheme
+□ Test with sample user
+□ Register your actual APEX objects
+□ Create your actual users
+□ Assign roles to users
+□ Grant permissions to roles
+□ Test authorization on actual pages
+□ Review audit log functionality
+□ Configure monitoring queries
+□ Document your custom roles and policies
+□ Train administrators
+
+================================================================================
+You now have a complete, enterprise-grade dynamic authorization system ready
+for use in Oracle APEX applications!
+================================================================================

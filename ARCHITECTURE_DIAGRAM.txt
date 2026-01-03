@@ -1,0 +1,561 @@
+================================================================================
+ORACLE APEX DYNAMIC AUTHORIZATION SCHEME - SYSTEM ARCHITECTURE
+================================================================================
+
+OVERVIEW DIAGRAM
+================================================================================
+
+                        ┌─────────────────────────────┐
+                        │   ORACLE APEX APPLICATION   │
+                        │  (Your Application Pages)   │
+                        └──────────────┬──────────────┘
+                                       │
+                                       │ Calls Authorization Functions
+                                       │
+                        ┌──────────────▼──────────────┐
+                        │  AUTHORIZATION SCHEMES       │
+                        │  (APEX Security Layer)       │
+                        │                              │
+                        │  • Page Authorization        │
+                        │  • Region Authorization      │
+                        │  • Button Authorization      │
+                        │  • Menu Authorization        │
+                        └──────────────┬──────────────┘
+                                       │
+                                       │ Uses Package Functions
+                                       │
+                        ┌──────────────▼──────────────┐
+                        │ APEX_AUTHORIZATION_PKG      │
+                        │ (PL/SQL Package)             │
+                        │                              │
+                        │  Main Functions:             │
+                        │  • is_page_authorized()      │
+                        │  • is_region_authorized()    │
+                        │  • is_button_authorized()    │
+                        │  • is_menu_authorized()      │
+                        │  • has_role()                │
+                        │  • has_any_role()            │
+                        │                              │
+                        │  Management:                 │
+                        │  • create_user()             │
+                        │  • assign_role_to_user()     │
+                        │  • grant_permission()        │
+                        └──────────────┬──────────────┘
+                                       │
+                      ┌────────────────┼────────────────┐
+                      │                │                │
+                      │                │                │
+            ┌─────────▼────┐  ┌───────▼────────┐  ┌───▼────────────┐
+            │   CACHE       │  │  DATABASE      │  │  AUDIT LOG     │
+            │   LAYER       │  │  TABLES        │  │  (Autonomous)  │
+            │               │  │                │  │                │
+            │  Session-     │  │  • Users       │  │  • All Auth    │
+            │  based        │  │  • Roles       │  │    Checks      │
+            │  Results      │  │  • Objects     │  │  • Results     │
+            │               │  │  • Permissions │  │  • Timestamps  │
+            │  Timeout:     │  │  • Assignments │  │  • IP Address  │
+            │  300 sec      │  │  • Config      │  │                │
+            └───────────────┘  └────────────────┘  └────────────────┘
+
+
+DATA FLOW DIAGRAM
+================================================================================
+
+AUTHORIZATION CHECK FLOW:
+--------------------------
+
+    1. User Accesses Page
+           |
+           v
+    2. APEX Calls Authorization Scheme
+           |
+           v
+    3. Package Function Called (e.g., is_page_authorized)
+           |
+           v
+    4. Check Cache
+           |
+           +----> Cache Hit?  ──Yes──> Return Cached Result ──> [7]
+           |
+           No
+           |
+           v
+    5. Query Database
+           |
+           +----> Check User Active?    ──No──>  Deny ──> [7]
+           |      Check Super Admin?    ──Yes─>  Allow ──> [7]
+           |      Check User Roles
+           |      Check Role Permissions
+           |      Check User Overrides
+           |      Apply Temporal Rules
+           |
+           v
+    6. Store in Cache
+           |
+           v
+    7. Log to Audit (if enabled)
+           |
+           v
+    8. Return TRUE/FALSE to APEX
+           |
+           v
+    9. APEX Shows/Hides Object
+
+    Time: ~1-5ms (cached) or ~10-50ms (database)
+
+
+DATABASE SCHEMA RELATIONSHIPS
+================================================================================
+
+┌─────────────────────┐
+│  APEX_AUTH_USERS    │
+│                     │
+│  PK: user_id        │
+│      username       │◄──────────────┐
+│      email          │               │
+│      full_name      │               │
+│      is_active      │               │
+│      is_locked      │               │
+└──────────┬──────────┘               │
+           │                          │
+           │ 1:N                      │
+           │                          │
+┌──────────▼─────────────┐            │
+│ APEX_AUTH_USER_ROLES   │            │
+│                        │            │
+│  FK: user_id           │            │ 1:N
+│  FK: role_id           │            │
+│      effective_from    │    ┌───────┴─────────────────┐
+│      effective_to      │    │ APEX_AUTH_USER_         │
+│      is_active         │    │ PERMISSIONS (Overrides) │
+└──────────┬─────────────┘    │                         │
+           │                  │  FK: user_id            │
+           │ N:1              │  FK: object_id          │
+           │                  │  FK: permission_id      │
+┌──────────▼──────────┐       │      is_granted         │
+│  APEX_AUTH_ROLES    │       │      override_roles     │
+│                     │       └─────────────────────────┘
+│  PK: role_id        │
+│      role_code      │
+│      role_name      │
+└──────────┬──────────┘
+           │
+           │ 1:N
+           │
+┌──────────▼────────────────┐
+│ APEX_AUTH_ROLE_          │
+│ PERMISSIONS              │
+│                          │
+│  FK: role_id             │
+│  FK: object_id           │───┐
+│  FK: permission_id       │   │
+│      is_granted          │   │ N:1
+│      effective_from      │   │
+│      effective_to        │   │
+└──────────────────────────┘   │
+                               │
+                    ┌──────────▼──────────────┐
+                    │  APEX_AUTH_OBJECTS      │
+                    │                         │
+                    │  PK: object_id          │
+                    │      application_id     │
+                    │      object_type        │
+                    │      object_code        │
+                    │      object_name        │
+                    │      page_id            │
+                    └─────────────────────────┘
+
+┌─────────────────────────┐
+│  APEX_AUTH_PERMISSIONS  │
+│                         │
+│  PK: permission_id      │
+│      permission_code    │
+│      permission_type    │
+│                         │
+│  • VIEW                 │
+│  • EDIT                 │
+│  • DELETE               │
+│  • EXECUTE              │
+│  • ADMIN                │
+└─────────────────────────┘
+
+
+APEX INTEGRATION ARCHITECTURE
+================================================================================
+
+┌───────────────────────────────────────────────────────────────────┐
+│                        APEX APPLICATION                           │
+│                                                                   │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────┐  ┌─────────┐ │
+│  │    Page     │  │   Region     │  │  Button   │  │  Menu   │ │
+│  │  (Static ID)│  │ (Static ID)  │  │(Static ID)│  │(Static  │ │
+│  │  PAGE_10    │  │ SALES_DATA   │  │BTN_DELETE │  │  ID)    │ │
+│  └──────┬──────┘  └──────┬───────┘  └─────┬─────┘  └────┬────┘ │
+│         │                 │                 │              │      │
+│         │ Auth            │ Auth            │ Auth         │ Auth │
+│         │ Scheme          │ Condition       │ Condition    │ Cond │
+│         │                 │                 │              │      │
+└─────────┼─────────────────┼─────────────────┼──────────────┼──────┘
+          │                 │                 │              │
+          └─────────────────┴─────────────────┴──────────────┘
+                                     │
+                    ┌────────────────▼─────────────────┐
+                    │  Authorization Scheme Functions  │
+                    │                                  │
+                    │  is_page_authorized()            │
+                    │  is_region_authorized()          │
+                    │  is_button_authorized()          │
+                    │  is_menu_authorized()            │
+                    └──────────────────────────────────┘
+
+
+SECURITY LAYERS
+================================================================================
+
+                     ┌─────────────────────┐
+                     │    Application      │
+                     │     User Login      │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+          Layer 1    │  Account Status     │  ──> Active? Not Locked?
+          -------    │  (User Level)       │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+          Layer 2    │  Super Admin Check  │  ──> Bypass All?
+          -------    │  (Role Level)       │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+          Layer 3    │  User Override      │  ──> Explicit Grant/Deny?
+          -------    │  (User Permission)  │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+          Layer 4    │  Role Permission    │  ──> Role Grants Access?
+          -------    │  (Via User Roles)   │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+          Layer 5    │  Default Policy     │  ──> ALLOW or DENY
+          -------    │  (Configuration)    │
+                     └──────────┬──────────┘
+                                │
+                                v
+                     ┌─────────────────────┐
+                     │  Final Decision     │  ──> GRANTED / DENIED
+                     │  (TRUE / FALSE)     │
+                     └─────────────────────┘
+
+
+PERMISSION EVALUATION LOGIC
+================================================================================
+
+START
+  |
+  v
+Is User Active and Not Locked?
+  |
+  +--NO--> DENY (User Inactive)
+  |
+YES
+  |
+  v
+Is User Super Admin?
+  |
+  +--YES--> GRANT (Super Admin Bypass)
+  |
+NO
+  |
+  v
+Does User Have Override Permission?
+  |
+  +--YES--> Is Override = 'Y'?
+  |          |
+  |          +--YES--> GRANT (User Override Grant)
+  |          |
+  |          +--NO--> DENY (User Override Deny)
+  |
+NO
+  |
+  v
+Does User Have Role with Permission?
+  |
+  +--YES--> Is Permission Granted = 'Y'?
+  |          |
+  |          +--YES--> Check Temporal Validity
+  |          |          |
+  |          |          +--VALID--> GRANT (Role Permission)
+  |          |          |
+  |          |          +--EXPIRED--> Continue to Default
+  |          |
+  |          +--NO--> DENY (Explicit Role Denial)
+  |
+NO
+  |
+  v
+Check Default Permission Policy
+  |
+  +--ALLOW--> GRANT (Default Allow)
+  |
+  +--DENY--> DENY (Default Deny)
+
+
+TEMPORAL VALIDITY CHECK
+================================================================================
+
+For each permission/role assignment:
+
+    SYSDATE >= effective_from
+        AND
+    (effective_to IS NULL OR SYSDATE <= effective_to)
+
+Example Timeline:
+-----------------
+    effective_from      SYSDATE          effective_to
+         |                 |                  |
+    Jan 1, 2026      Jan 15, 2026        Mar 31, 2026
+         |─────────────────✓─────────────────|
+              VALID PERIOD
+
+    Before Jan 1: NOT YET EFFECTIVE
+    Jan 1 - Mar 31: ACTIVE
+    After Mar 31: EXPIRED
+
+
+CACHING MECHANISM
+================================================================================
+
+Cache Structure:
+----------------
+    Key: username|app_id|object_code|object_type|permission_type
+    Value: BOOLEAN (TRUE = Granted, FALSE = Denied)
+    Storage: PL/SQL Associative Array (Session Memory)
+    Lifetime: Until cache timeout or clear_cache() called
+
+Cache Flow:
+-----------
+    1. Authorization Request
+           |
+           v
+    2. Generate Cache Key
+           |
+           v
+    3. Check if Key Exists in Cache
+           |
+           +----> Exists? ──Yes──> Check Age
+           |                        |
+           |                        +--< Timeout ──> Return Cached Value
+           |                        |
+           |                        +--> Timeout ──> Continue to DB
+           |
+           No
+           |
+           v
+    4. Query Database
+           |
+           v
+    5. Store Result in Cache
+           |
+           v
+    6. Return Result
+
+Cache Benefits:
+---------------
+    • Reduces database calls by ~80-90%
+    • Improves page load time
+    • Reduces database load
+    • Configurable timeout (default 300 seconds)
+
+
+AUDIT TRAIL ARCHITECTURE
+================================================================================
+
+┌──────────────────────┐
+│  Authorization Check │
+│  (Main Function)     │
+└──────────┬───────────┘
+           │
+           v
+┌──────────────────────┐
+│  Calculate Result    │
+│  (Grant/Deny)        │
+└──────────┬───────────┘
+           │
+           v
+┌──────────────────────┐
+│  log_authorization() │
+│  (Autonomous Trans)  │  ──> Writes independently
+└──────────┬───────────┘      Never affects main logic
+           │
+           v
+┌──────────────────────┐
+│ APEX_AUTH_AUDIT_LOG  │
+│                      │
+│  • username          │
+│  • object_code       │
+│  • permission_type   │
+│  • result (G/D)      │
+│  • reason            │
+│  • timestamp         │
+│  • ip_address        │
+│  • session_id        │
+└──────────────────────┘
+
+Benefits:
+---------
+    • Complete audit trail for compliance
+    • Security monitoring
+    • Troubleshooting tool
+    • Access pattern analysis
+    • Autonomous transaction = never fails main process
+
+
+SCALABILITY CONSIDERATIONS
+================================================================================
+
+Performance Tier      | Users    | Strategy
+---------------------|----------|----------------------------------------
+Small (< 100 users)  | < 100    | Default config, no special tuning
+Medium (100-1000)    | 100-1000 | Increase cache timeout to 600 seconds
+Large (1000-10000)   | 1k-10k   | Partition audit log by month
+Enterprise (>10000)  | >10k     | Add application-level caching
+                     |          | Consider audit log archival
+
+
+DEPLOYMENT ARCHITECTURE
+================================================================================
+
+Development Environment:
+------------------------
+    • Install with sample data
+    • Enable audit logging
+    • Test all scenarios
+    • Cache timeout: 300s
+
+Test Environment:
+-----------------
+    • Install without sample data
+    • Enable audit logging
+    • Test with production-like data
+    • Cache timeout: 300s
+
+Production Environment:
+-----------------------
+    • Install without sample data
+    • Enable audit logging
+    • Regular audit log archival
+    • Cache timeout: 600s (or tuned)
+    • Monitor performance metrics
+    • Schedule regular statistics updates
+
+
+INTEGRATION POINTS
+================================================================================
+
+APEX Integration:
+-----------------
+    • Authorization Schemes (Page level)
+    • Server-side Conditions (Region/Button level)
+    • Navigation Menu Authorization
+    • Dynamic Actions (conditional display)
+    • Process Authorization
+
+External Integration Options:
+------------------------------
+    • REST API wrapper (custom)
+    • LDAP/AD sync (custom)
+    • SSO integration (via APEX)
+    • Reporting tools (via views)
+    • Third-party admin UIs
+
+
+MAINTENANCE ARCHITECTURE
+================================================================================
+
+Daily Tasks:
+    └─> Monitor denied access (APEX_AUTH_V_RECENT_DENIALS)
+
+Weekly Tasks:
+    └─> Check expiring roles (APEX_AUTH_V_EXPIRING_ROLES)
+    └─> Review users without roles
+
+Monthly Tasks:
+    └─> Archive audit log (>90 days old)
+    └─> Update statistics (DBMS_STATS)
+    └─> Review unused objects
+
+Quarterly Tasks:
+    └─> Full security audit
+    └─> Review all role definitions
+    └─> Performance tuning
+
+
+DISASTER RECOVERY
+================================================================================
+
+Critical Data (Must Backup):
+    • APEX_AUTH_ROLES
+    • APEX_AUTH_USERS
+    • APEX_AUTH_USER_ROLES
+    • APEX_AUTH_OBJECTS
+    • APEX_AUTH_ROLE_PERMISSIONS
+    • APEX_AUTH_CONFIG
+
+Recoverable Data:
+    • APEX_AUTH_AUDIT_LOG (archive separately)
+    • Views (can be recreated from script)
+    • Package (can be recreated from script)
+
+Recovery Procedure:
+    1. Restore tables from backup
+    2. Recreate package (@02 and @03)
+    3. Recreate views (@06)
+    4. Validate with test users
+
+
+SECURITY ARCHITECTURE
+================================================================================
+
+Defense Layers:
+---------------
+    1. Account Status Check (is_active, is_locked)
+    2. Super Admin Bypass (configurable)
+    3. User-Level Overrides (explicit grant/deny)
+    4. Role-Based Permissions (primary control)
+    5. Temporal Validity (time-based access)
+    6. Default Policy (fail-safe)
+    7. Audit Trail (complete logging)
+
+SQL Injection Prevention:
+-------------------------
+    • All queries use bind variables
+    • No dynamic SQL with string concatenation
+    • Parameterized package calls
+
+Data Integrity:
+---------------
+    • Foreign key constraints
+    • Check constraints
+    • Unique constraints
+    • NOT NULL constraints
+    • Default values
+
+Access Control:
+---------------
+    • Uppercase username normalization
+    • Case-insensitive comparisons
+    • Explicit permission grants required
+    • No default "allow all" behavior
+
+
+================================================================================
+This architecture provides enterprise-grade authorization with performance,
+security, scalability, and maintainability built into every layer.
+================================================================================

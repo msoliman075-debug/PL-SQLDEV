@@ -1,0 +1,615 @@
+/*******************************************************************************
+ * Oracle APEX Dynamic Authorization Scheme
+ * Implementation Guide and Usage Examples
+ * 
+ * Purpose: Step-by-step guide for implementing the authorization scheme
+ *          in Oracle APEX applications
+ * 
+ * Author: Generated for Oracle APEX 19c+
+ * Date: January 2026
+ ******************************************************************************/
+
+============================================================================
+ORACLE APEX DYNAMIC AUTHORIZATION SCHEME - IMPLEMENTATION GUIDE
+============================================================================
+
+TABLE OF CONTENTS
+=================
+1. Installation Steps
+2. APEX Authorization Scheme Configuration
+3. Page-Level Authorization
+4. Region-Level Authorization
+5. Button-Level Authorization
+6. Menu Item Authorization
+7. Dynamic Authorization Management
+8. Common Use Cases
+9. Performance Considerations
+10. Troubleshooting
+
+
+============================================================================
+1. INSTALLATION STEPS
+============================================================================
+
+Step 1: Execute DDL Scripts
+----------------------------
+Run the following scripts in order:
+
+1. 01_DDL_Authorization_Tables.sql     -- Creates all authorization tables
+2. 02_PKG_SPEC_Authorization.sql       -- Creates package specification
+3. 03_PKG_BODY_Authorization.sql       -- Creates package body
+4. 04_Sample_Data_and_Tests.sql        -- Creates sample data (optional)
+
+Verify installation:
+   SELECT object_name, object_type, status 
+   FROM user_objects 
+   WHERE object_name LIKE 'APEX_AUTH%';
+
+All objects should show STATUS = 'VALID'
+
+
+Step 2: Initialize the System
+------------------------------
+Execute:
+   BEGIN
+       apex_authorization_pkg.initialize_default_permissions;
+   END;
+   /
+
+This creates default roles and permissions.
+
+
+============================================================================
+2. APEX AUTHORIZATION SCHEME CONFIGURATION
+============================================================================
+
+Creating a Custom Authorization Scheme in APEX:
+------------------------------------------------
+
+1. Navigate to: Shared Components > Security > Authorization Schemes
+2. Click "Create"
+3. Set the following:
+
+   Name: Dynamic Authorization - Pages
+   Schema Type: PL/SQL Function Returning Boolean
+   
+   PL/SQL Function Body:
+   ---------------------
+   RETURN apex_authorization_pkg.is_page_authorized(
+       p_page_id => :APP_PAGE_ID,
+       p_application_id => :APP_ID,
+       p_username => :APP_USER
+   );
+
+4. Error Message: "You do not have access to this page."
+5. Validate Authorization: Once per session (for better performance)
+6. Click "Create Authorization Scheme"
+
+
+Creating Additional Authorization Schemes:
+-------------------------------------------
+
+A) For Regions:
+   Name: Dynamic Authorization - Regions
+   PL/SQL Function:
+   ----------------
+   RETURN apex_authorization_pkg.is_region_authorized(
+       p_region_code => :REGION_STATIC_ID,
+       p_page_id => :APP_PAGE_ID,
+       p_application_id => :APP_ID,
+       p_username => :APP_USER
+   );
+
+B) For Buttons:
+   Name: Dynamic Authorization - Buttons
+   PL/SQL Function:
+   ----------------
+   RETURN apex_authorization_pkg.is_button_authorized(
+       p_button_code => :BUTTON_STATIC_ID,
+       p_page_id => :APP_PAGE_ID,
+       p_application_id => :APP_ID,
+       p_username => :APP_USER
+   );
+
+C) For Menus:
+   Name: Dynamic Authorization - Menus
+   PL/SQL Function:
+   ----------------
+   RETURN apex_authorization_pkg.is_menu_authorized(
+       p_menu_code => :MENU_STATIC_ID,
+       p_application_id => :APP_ID,
+       p_username => :APP_USER
+   );
+
+D) Role-Based Simple Check:
+   Name: Has Manager Role
+   PL/SQL Function:
+   ----------------
+   RETURN apex_authorization_pkg.has_role(
+       p_username => :APP_USER,
+       p_role_code => 'MANAGER'
+   );
+
+
+============================================================================
+3. PAGE-LEVEL AUTHORIZATION
+============================================================================
+
+Applying Authorization to Pages:
+---------------------------------
+
+1. Open the page in Page Designer
+2. Select the page (click on page number)
+3. In Security section, set:
+   - Authorization Scheme: Dynamic Authorization - Pages
+   
+4. IMPORTANT: Set the page Static ID to match registered object code
+   - Navigate to: Page Properties > Advanced > Static ID
+   - Set to: PAGE_<number> (e.g., PAGE_10)
+   
+5. Save and run the page
+
+
+Registering Pages in the Authorization System:
+-----------------------------------------------
+
+-- Register all pages at once (run this for each page)
+BEGIN
+    apex_authorization_pkg.register_object(
+        p_application_id => :APP_ID,  -- Your application ID
+        p_object_type => 'PAGE',
+        p_object_code => 'PAGE_10',   -- Must match page static ID
+        p_object_name => 'Dashboard',
+        p_page_id => 10,
+        p_object_desc => 'Main application dashboard'
+    );
+END;
+/
+
+-- Grant access to a role
+BEGIN
+    apex_authorization_pkg.grant_permission(
+        p_role_code => 'USER',
+        p_application_id => 100,  -- Your app ID
+        p_object_code => 'PAGE_10',
+        p_permission_code => 'VIEW'
+    );
+END;
+/
+
+
+============================================================================
+4. REGION-LEVEL AUTHORIZATION
+============================================================================
+
+Configuring Region Authorization:
+----------------------------------
+
+1. Select the region in Page Designer
+2. Set Static ID under Region > Advanced > Static ID
+   Example: FINANCIAL_REPORT
+   
+3. In Security section:
+   - Authorization Scheme: Dynamic Authorization - Regions
+   
+   OR use Server-side Condition:
+   - Type: Function Body Returning Boolean
+   - PL/SQL Function:
+     RETURN apex_authorization_pkg.is_region_authorized(
+         p_region_code => 'FINANCIAL_REPORT',
+         p_application_id => :APP_ID,
+         p_username => :APP_USER
+     );
+
+4. Save the page
+
+
+Register and Grant Access:
+---------------------------
+
+BEGIN
+    -- Register region
+    apex_authorization_pkg.register_object(
+        p_application_id => 100,
+        p_object_type => 'REGION',
+        p_object_code => 'FINANCIAL_REPORT',
+        p_object_name => 'Financial Report Region',
+        p_page_id => 20,
+        p_object_desc => 'Sensitive financial data region'
+    );
+    
+    -- Grant to MANAGER role only
+    apex_authorization_pkg.grant_permission(
+        p_role_code => 'MANAGER',
+        p_application_id => 100,
+        p_object_code => 'FINANCIAL_REPORT',
+        p_permission_code => 'VIEW'
+    );
+END;
+/
+
+
+============================================================================
+5. BUTTON-LEVEL AUTHORIZATION
+============================================================================
+
+Securing Buttons:
+-----------------
+
+1. Select the button in Page Designer
+2. Set Static ID under Button > Advanced > Static ID
+   Example: BTN_DELETE
+   
+3. In Server-side Condition section:
+   - Type: Function Body Returning Boolean
+   - PL/SQL Function:
+     RETURN apex_authorization_pkg.is_button_authorized(
+         p_button_code => 'BTN_DELETE',
+         p_application_id => :APP_ID,
+         p_username => :APP_USER
+     );
+
+4. Save
+
+
+Register and Configure:
+------------------------
+
+BEGIN
+    -- Register button
+    apex_authorization_pkg.register_object(
+        p_application_id => 100,
+        p_object_type => 'BUTTON',
+        p_object_code => 'BTN_DELETE',
+        p_object_name => 'Delete Button',
+        p_page_id => 10,
+        p_object_desc => 'Delete records button'
+    );
+    
+    -- Grant only to ADMIN and MANAGER roles
+    apex_authorization_pkg.grant_permission(
+        p_role_code => 'ADMIN',
+        p_application_id => 100,
+        p_object_code => 'BTN_DELETE',
+        p_permission_code => 'EXECUTE'
+    );
+    
+    apex_authorization_pkg.grant_permission(
+        p_role_code => 'MANAGER',
+        p_application_id => 100,
+        p_object_code => 'BTN_DELETE',
+        p_permission_code => 'EXECUTE'
+    );
+END;
+/
+
+
+============================================================================
+6. MENU ITEM AUTHORIZATION
+============================================================================
+
+Securing Navigation Menu Entries:
+----------------------------------
+
+1. Go to Shared Components > Navigation > Lists
+2. Edit your navigation list
+3. For each menu item:
+   - Set User Defined Attribute 01 to the menu code
+     Example: MENU_ADMIN
+   
+4. Set Authorization Scheme: Dynamic Authorization - Menus
+   
+   OR in Condition section:
+   - Type: Function Body Returning Boolean
+   - PL/SQL:
+     RETURN apex_authorization_pkg.is_menu_authorized(
+         p_menu_code => 'MENU_ADMIN',
+         p_application_id => :APP_ID
+     );
+
+
+Register Menu Items:
+--------------------
+
+BEGIN
+    apex_authorization_pkg.register_object(
+        p_application_id => 100,
+        p_object_type => 'MENU',
+        p_object_code => 'MENU_ADMIN',
+        p_object_name => 'Administration Menu',
+        p_object_desc => 'Admin menu entry'
+    );
+    
+    -- Grant only to ADMIN role
+    apex_authorization_pkg.grant_permission(
+        p_role_code => 'ADMIN',
+        p_application_id => 100,
+        p_object_code => 'MENU_ADMIN',
+        p_permission_code => 'VIEW'
+    );
+END;
+/
+
+
+============================================================================
+7. DYNAMIC AUTHORIZATION MANAGEMENT
+============================================================================
+
+Creating an Admin Interface:
+-----------------------------
+
+Create APEX pages for end-user management:
+
+Page 1000: User Management
+- Interactive Report on APEX_AUTH_USERS
+- Form for creating/editing users
+
+Page 1001: Role Management
+- Interactive Report on APEX_AUTH_ROLES
+- Form for creating/editing roles
+
+Page 1002: User-Role Assignment
+- Interactive Report showing user-role mappings
+- Buttons to assign/remove roles using:
+  apex_authorization_pkg.assign_role_to_user()
+  apex_authorization_pkg.remove_role_from_user()
+
+Page 1003: Object Registration
+- Interactive Report on APEX_AUTH_OBJECTS
+- Auto-discovery process to find pages/regions/buttons
+
+Page 1004: Permission Assignment
+- Matrix view showing Roles vs Objects
+- Checkboxes to grant/revoke permissions using:
+  apex_authorization_pkg.grant_permission()
+  apex_authorization_pkg.revoke_permission()
+
+Page 1005: Audit Log
+- Interactive Report on APEX_AUTH_AUDIT_LOG
+- Filters for username, date, authorization result
+
+
+Sample Process for Granting Permission:
+----------------------------------------
+
+CREATE OR REPLACE PROCEDURE grant_permission_process IS
+BEGIN
+    apex_authorization_pkg.grant_permission(
+        p_role_code => :P1004_ROLE_CODE,
+        p_application_id => :APP_ID,
+        p_object_code => :P1004_OBJECT_CODE,
+        p_permission_code => :P1004_PERMISSION_CODE,
+        p_is_granted => :P1004_IS_GRANTED
+    );
+    
+    apex_application.g_print_success_message := 
+        'Permission successfully granted';
+EXCEPTION
+    WHEN OTHERS THEN
+        apex_error.add_error(
+            p_message => 'Error granting permission: ' || SQLERRM,
+            p_display_location => apex_error.c_inline_in_notification
+        );
+END;
+
+
+============================================================================
+8. COMMON USE CASES
+============================================================================
+
+Use Case 1: Time-Based Access
+------------------------------
+Grant temporary access to a user:
+
+BEGIN
+    apex_authorization_pkg.assign_role_to_user(
+        p_username => 'JOHN.DOE',
+        p_role_code => 'ADMIN',
+        p_effective_from => SYSDATE,
+        p_effective_to => SYSDATE + 30  -- 30 days access
+    );
+END;
+
+
+Use Case 2: User-Specific Override
+-----------------------------------
+Give one user special access without changing roles:
+
+BEGIN
+    apex_authorization_pkg.grant_user_permission(
+        p_username => 'JANE.SMITH',
+        p_application_id => 100,
+        p_object_code => 'FINANCIAL_REPORT',
+        p_permission_code => 'VIEW',
+        p_is_granted => 'Y',
+        p_override_roles => 'Y'  -- Override role restrictions
+    );
+END;
+
+
+Use Case 3: Deny Access Explicitly
+-----------------------------------
+Explicitly deny access even if role would grant it:
+
+BEGIN
+    apex_authorization_pkg.grant_user_permission(
+        p_username => 'BOB.USER',
+        p_application_id => 100,
+        p_object_code => 'BTN_DELETE',
+        p_permission_code => 'EXECUTE',
+        p_is_granted => 'N',  -- Explicitly deny
+        p_override_roles => 'Y'
+    );
+END;
+
+
+Use Case 4: Multiple Role Check
+--------------------------------
+Check if user has any admin role:
+
+Authorization Scheme PL/SQL:
+RETURN apex_authorization_pkg.has_any_role(
+    p_username => :APP_USER,
+    p_role_codes => 'ADMIN,SUPERADMIN,SYSADMIN'
+);
+
+
+Use Case 5: Lock User Account
+------------------------------
+Temporarily disable user access:
+
+BEGIN
+    apex_authorization_pkg.update_user(
+        p_username => 'PROBLEM.USER',
+        p_is_locked => 'Y'
+    );
+END;
+
+
+============================================================================
+9. PERFORMANCE CONSIDERATIONS
+============================================================================
+
+Optimization Tips:
+------------------
+
+1. CACHING: The package includes session-based caching
+   - Cache timeout configurable via CACHE_TIMEOUT_SECONDS
+   - Default: 300 seconds (5 minutes)
+   
+2. INDEXES: Ensure all indexes are created (included in DDL)
+
+3. VALIDATION: Set authorization schemes to validate 
+   "Once per session" when possible instead of "Once per page view"
+
+4. STATISTICS: Keep statistics updated:
+   EXEC DBMS_STATS.GATHER_SCHEMA_STATS(USER);
+
+5. AUDIT LOG: Consider partitioning APEX_AUTH_AUDIT_LOG by date
+   if logging is heavy
+
+6. CLEAR CACHE: Clear cache after permission changes:
+   BEGIN
+       apex_authorization_pkg.clear_cache;
+   END;
+
+
+Performance Tuning Query:
+-------------------------
+-- Find slow authorization checks in audit log
+SELECT 
+    object_code,
+    COUNT(*) AS check_count,
+    authorization_result
+FROM apex_auth_audit_log
+WHERE audit_timestamp > SYSDATE - 1
+GROUP BY object_code, authorization_result
+ORDER BY check_count DESC;
+
+
+============================================================================
+10. TROUBLESHOOTING
+============================================================================
+
+Issue 1: Authorization Always Returns False
+--------------------------------------------
+Check:
+1. User exists in APEX_AUTH_USERS and is active
+   SELECT * FROM apex_auth_users WHERE username = '<user>';
+
+2. User has active role assignment
+   SELECT * FROM apex_auth_user_roles WHERE user_id = <id>;
+
+3. Object is registered
+   SELECT * FROM apex_auth_objects WHERE object_code = '<code>';
+
+4. Permission is granted to role
+   SELECT * FROM apex_auth_role_permissions WHERE role_id = <id>;
+
+
+Issue 2: Changes Not Taking Effect
+-----------------------------------
+Solution: Clear the authorization cache
+   BEGIN
+       apex_authorization_pkg.clear_cache;
+   END;
+   /
+
+OR restart APEX session (logout/login)
+
+
+Issue 3: Super Admin Can't Access Everything
+---------------------------------------------
+Check configuration:
+   SELECT * FROM apex_auth_config WHERE config_key = 'SUPERADMIN_ROLE';
+
+Ensure user has the SUPERADMIN role:
+   SELECT * FROM apex_auth_user_roles ur
+   JOIN apex_auth_roles r ON ur.role_id = r.role_id
+   WHERE r.role_code = 'SUPERADMIN';
+
+
+Issue 4: Audit Log Not Working
+-------------------------------
+Check configuration:
+   SELECT * FROM apex_auth_config WHERE config_key = 'ENABLE_AUDIT_LOG';
+
+Enable if needed:
+   BEGIN
+       apex_authorization_pkg.set_config('ENABLE_AUDIT_LOG', 'Y');
+   END;
+
+
+Issue 5: Package Compilation Errors
+------------------------------------
+Check dependencies:
+   SELECT * FROM user_errors 
+   WHERE name = 'APEX_AUTHORIZATION_PKG'
+   ORDER BY sequence;
+
+Common issues:
+- APEX not installed (APEX_APPLICATION references fail)
+- Missing table or column
+
+
+Debug Query - Check User Authorization:
+---------------------------------------
+SELECT 
+    u.username,
+    r.role_code,
+    o.object_code,
+    o.object_type,
+    p.permission_type,
+    rp.is_granted,
+    CASE 
+        WHEN SYSDATE BETWEEN rp.effective_from AND NVL(rp.effective_to, SYSDATE+1) 
+        THEN 'ACTIVE' 
+        ELSE 'EXPIRED' 
+    END AS status
+FROM apex_auth_users u
+JOIN apex_auth_user_roles ur ON u.user_id = ur.user_id
+JOIN apex_auth_roles r ON ur.role_id = r.role_id
+JOIN apex_auth_role_permissions rp ON r.role_id = rp.role_id
+JOIN apex_auth_objects o ON rp.object_id = o.object_id
+JOIN apex_auth_permissions p ON rp.permission_id = p.permission_id
+WHERE u.username = '<USERNAME>'
+AND o.application_id = <APP_ID>
+ORDER BY o.object_type, o.object_code;
+
+
+============================================================================
+SUMMARY
+============================================================================
+
+This dynamic authorization scheme provides:
+✓ Centralized authorization management
+✓ Role-based access control (RBAC)
+✓ User-specific permission overrides
+✓ Temporal validity (time-based access)
+✓ Comprehensive audit logging
+✓ Flexibility for end-user administration
+✓ Fine-grained control over Pages, Regions, Buttons, and Menus
+
+For support or questions, review the package comments or audit logs.
+
+============================================================================

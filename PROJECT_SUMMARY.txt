@@ -1,0 +1,487 @@
+================================================================================
+ORACLE APEX DYNAMIC AUTHORIZATION SCHEME - PROJECT SUMMARY
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+A complete, production-ready dynamic authorization system for Oracle APEX that
+provides flexible, role-based access control for Pages, Menus, Regions, and
+Buttons with end-user administration capabilities.
+
+DELIVERABLES
+================================================================================
+
+1. 00_Quick_Start_Install.sql (Master Installation Script)
+   - One-click installation of entire system
+   - Includes validation and testing
+   - Creates sample data for immediate testing
+   - Validates all objects after creation
+
+2. 01_DDL_Authorization_Tables.sql (Database Schema)
+   - 9 core tables for authorization
+   - Proper indexes for performance
+   - Foreign key constraints
+   - Audit trail support
+   - Temporal validity (time-based access)
+   
+   Tables Created:
+   - APEX_AUTH_ROLES              (Authorization roles)
+   - APEX_AUTH_USERS              (User information)
+   - APEX_AUTH_USER_ROLES         (User-role assignments)
+   - APEX_AUTH_OBJECTS            (Secureable objects)
+   - APEX_AUTH_PERMISSIONS        (Permission types)
+   - APEX_AUTH_ROLE_PERMISSIONS   (Role permissions)
+   - APEX_AUTH_USER_PERMISSIONS   (User overrides)
+   - APEX_AUTH_AUDIT_LOG          (Audit trail)
+   - APEX_AUTH_CONFIG             (Configuration)
+
+3. 02_PKG_SPEC_Authorization.sql (Package Specification)
+   - 30+ public functions and procedures
+   - Well-documented API
+   - Exception handling definitions
+   - Type definitions
+   
+   Key Functions:
+   - is_authorized()              (Main authorization check)
+   - is_page_authorized()         (Page-level check)
+   - is_region_authorized()       (Region-level check)
+   - is_button_authorized()       (Button-level check)
+   - is_menu_authorized()         (Menu-level check)
+   - has_role()                   (Role membership check)
+   - has_any_role()               (Multiple role check)
+   - has_all_roles()              (All roles check)
+   
+   Key Procedures:
+   - create_role()                (Role management)
+   - create_user()                (User management)
+   - assign_role_to_user()        (Role assignment)
+   - register_object()            (Object registration)
+   - grant_permission()           (Permission granting)
+   - grant_user_permission()      (User overrides)
+   - clear_cache()                (Cache management)
+
+4. 03_PKG_BODY_Authorization.sql (Package Implementation)
+   - Complete implementation of all functions
+   - Built-in caching mechanism
+   - Autonomous transaction audit logging
+   - Comprehensive error handling
+   - Super admin bypass support
+   - Default permission policy
+   - Performance optimized queries
+
+5. 04_Sample_Data_and_Tests.sql (Sample Data & Tests)
+   - Creates default roles (SUPERADMIN, ADMIN, MANAGER, USER, GUEST)
+   - Creates default permissions (VIEW, EDIT, DELETE, EXECUTE, ADMIN)
+   - Sample users with role assignments
+   - Sample APEX objects registration
+   - Permission grants examples
+   - Automated test suite
+   - Result verification queries
+
+6. 05_Implementation_Guide.txt (Complete Documentation)
+   - Step-by-step installation instructions
+   - APEX configuration guide
+   - Page-level authorization setup
+   - Region-level authorization setup
+   - Button-level authorization setup
+   - Menu authorization setup
+   - Common use cases with examples
+   - Performance tuning tips
+   - Troubleshooting guide
+
+7. 06_Utility_Views.sql (Reporting Views)
+   - 10 pre-built views for administration
+   - User-role assignment views
+   - Permission matrix views
+   - Audit summary views
+   - Security monitoring views
+   - Expiring access alerts
+   
+   Views Created:
+   - APEX_AUTH_V_USER_ROLES
+   - APEX_AUTH_V_ROLE_PERMISSIONS
+   - APEX_AUTH_V_USER_PERMISSIONS
+   - APEX_AUTH_V_AUDIT_SUMMARY
+   - APEX_AUTH_V_ACTIVE_USERS
+   - APEX_AUTH_V_OBJECT_SECURITY
+   - APEX_AUTH_V_RECENT_DENIALS
+   - APEX_AUTH_V_EXPIRING_ROLES
+   - APEX_AUTH_V_USERS_WITHOUT_ROLES
+   - APEX_AUTH_V_CONFIG
+
+8. README.md (Project Documentation)
+   - Feature overview
+   - Quick start guide
+   - Usage examples
+   - Architecture description
+   - Configuration options
+   - Monitoring and audit guide
+   - Troubleshooting section
+
+FEATURES IMPLEMENTED
+================================================================================
+
+Core Features:
+✓ Role-Based Access Control (RBAC)
+✓ User-specific permission overrides
+✓ Temporal validity (time-based access)
+✓ Super admin role support
+✓ Default permission policy (ALLOW/DENY)
+✓ Multiple object types (PAGE, REGION, BUTTON, MENU, ITEM)
+✓ Session-based caching with configurable timeout
+✓ Comprehensive audit logging
+✓ Account locking/unlocking
+✓ Active/inactive user management
+✓ Role expiration dates
+✓ Permission expiration dates
+
+Advanced Features:
+✓ User override with role bypass
+✓ Multiple role checks (ANY/ALL)
+✓ Autonomous transaction logging
+✓ Configurable system parameters
+✓ Cache invalidation support
+✓ Detailed authorization reasons
+✓ IP address logging
+✓ Session tracking
+
+Security Features:
+✓ Exception handling throughout
+✓ SQL injection prevention (bind variables)
+✓ Uppercase username normalization
+✓ Proper foreign key constraints
+✓ Check constraints for data integrity
+✓ Unique constraints to prevent duplicates
+✓ Proper privilege separation
+
+Performance Features:
+✓ Session-based authorization cache
+✓ Optimized indexes on all tables
+✓ Efficient join strategies
+✓ Minimal database calls
+✓ Configurable cache timeout
+✓ Bulk operations support
+
+Oracle Best Practices Followed:
+✓ Proper BEGIN/END structure
+✓ Exception handling in all procedures
+✓ Explicit joins (no implicit joins)
+✓ PRAGMA EXCEPTION_INIT for custom errors
+✓ Autonomous transactions for logging
+✓ Default values for parameters
+✓ Proper NULL handling
+✓ Comments on tables and columns
+✓ Meaningful constraint names
+✓ Standard naming conventions
+
+INSTALLATION INSTRUCTIONS
+================================================================================
+
+Method 1: Quick Install (Recommended)
+--------------------------------------
+1. Connect to your Oracle database as appropriate schema owner
+2. Execute: @00_Quick_Start_Install.sql
+3. Follow prompts and review output
+4. All components will be installed automatically
+
+Method 2: Manual Install
+------------------------
+1. Execute scripts in order:
+   - @01_DDL_Authorization_Tables.sql
+   - @02_PKG_SPEC_Authorization.sql
+   - @03_PKG_BODY_Authorization.sql
+   - @04_Sample_Data_and_Tests.sql (optional)
+   - @06_Utility_Views.sql (optional)
+
+2. Verify installation:
+   SELECT object_name, object_type, status 
+   FROM user_objects 
+   WHERE object_name LIKE 'APEX_AUTH%';
+
+3. Initialize system:
+   BEGIN
+       apex_authorization_pkg.initialize_default_permissions;
+   END;
+   /
+
+APEX CONFIGURATION STEPS
+================================================================================
+
+1. Create Authorization Scheme:
+   - Shared Components > Security > Authorization Schemes
+   - Name: Dynamic Authorization - Pages
+   - Type: PL/SQL Function Returning Boolean
+   - Function:
+     RETURN apex_authorization_pkg.is_page_authorized(
+         p_page_id => :APP_PAGE_ID,
+         p_application_id => :APP_ID,
+         p_username => :APP_USER
+     );
+
+2. Apply to Page:
+   - Page Properties > Security > Authorization Scheme
+   - Select: Dynamic Authorization - Pages
+   - Page Properties > Advanced > Static ID: PAGE_<number>
+
+3. Register Page in System:
+   BEGIN
+       apex_authorization_pkg.register_object(
+           p_application_id => 100,
+           p_object_type => 'PAGE',
+           p_object_code => 'PAGE_10',
+           p_object_name => 'Dashboard',
+           p_page_id => 10
+       );
+   END;
+   /
+
+4. Grant Access:
+   BEGIN
+       apex_authorization_pkg.grant_permission(
+           p_role_code => 'USER',
+           p_application_id => 100,
+           p_object_code => 'PAGE_10',
+           p_permission_code => 'VIEW'
+       );
+   END;
+   /
+
+COMMON USE CASES
+================================================================================
+
+1. Time-Limited Access:
+   BEGIN
+       apex_authorization_pkg.assign_role_to_user(
+           p_username => 'CONTRACTOR',
+           p_role_code => 'TEMP_ACCESS',
+           p_effective_from => SYSDATE,
+           p_effective_to => SYSDATE + 90
+       );
+   END;
+   /
+
+2. Special User Access:
+   BEGIN
+       apex_authorization_pkg.grant_user_permission(
+           p_username => 'AUDITOR',
+           p_application_id => 100,
+           p_object_code => 'FINANCIAL_DATA',
+           p_permission_code => 'VIEW',
+           p_is_granted => 'Y',
+           p_override_roles => 'Y'
+       );
+   END;
+   /
+
+3. Lock User Account:
+   BEGIN
+       apex_authorization_pkg.update_user(
+           p_username => 'SUSPENDED.USER',
+           p_is_locked => 'Y'
+       );
+   END;
+   /
+
+4. Check Multiple Roles:
+   IF apex_authorization_pkg.has_any_role(
+       p_username => :APP_USER,
+       p_role_codes => 'ADMIN,MANAGER,SUPERVISOR'
+   ) THEN
+       -- User has administrative privileges
+   END IF;
+
+CONFIGURATION OPTIONS
+================================================================================
+
+View Current Configuration:
+   SELECT * FROM apex_auth_v_config;
+
+Update Configuration:
+   BEGIN
+       apex_authorization_pkg.set_config('ENABLE_AUDIT_LOG', 'Y');
+       apex_authorization_pkg.set_config('CACHE_TIMEOUT_SECONDS', '600');
+       apex_authorization_pkg.set_config('DEFAULT_PERMISSION', 'DENY');
+       apex_authorization_pkg.set_config('SUPERADMIN_ROLE', 'SUPERADMIN');
+   END;
+   /
+
+MONITORING & REPORTING
+================================================================================
+
+1. View Active Users:
+   SELECT * FROM apex_auth_v_active_users;
+
+2. Check User Permissions:
+   SELECT * FROM apex_auth_v_user_permissions 
+   WHERE username = 'JOHN.DOE'
+   AND application_id = 100;
+
+3. Monitor Access Denials:
+   SELECT * FROM apex_auth_v_recent_denials;
+
+4. Check Expiring Access:
+   SELECT * FROM apex_auth_v_expiring_roles
+   WHERE expiration_status = 'EXPIRES THIS WEEK';
+
+5. Audit Trail:
+   SELECT * FROM apex_auth_audit_log
+   WHERE username = 'JOHN.DOE'
+   AND audit_timestamp > SYSDATE - 7
+   ORDER BY audit_timestamp DESC;
+
+PERFORMANCE CONSIDERATIONS
+================================================================================
+
+1. Authorization schemes: Set to "Once per session" when possible
+2. Keep database statistics updated: DBMS_STATS.GATHER_SCHEMA_STATS
+3. Clear cache after permission changes: clear_cache()
+4. Monitor audit log size - consider partitioning by date
+5. Adjust cache timeout based on your needs (default 300 seconds)
+6. Use utility views for reporting instead of complex queries
+7. Create additional indexes if needed for your specific queries
+
+TESTING & VALIDATION
+================================================================================
+
+Run built-in tests:
+   @04_Sample_Data_and_Tests.sql
+
+Manual testing checklist:
+□ User can access permitted pages
+□ User cannot access restricted pages
+□ Super admin can access everything
+□ Locked accounts are denied access
+□ Expired roles are not effective
+□ User overrides work correctly
+□ Audit log captures events
+□ Cache improves performance
+□ Configuration changes take effect
+
+TROUBLESHOOTING
+================================================================================
+
+Problem: Authorization always fails
+Solution: 
+   - Check if user exists and is active
+   - Verify role assignments
+   - Confirm object is registered
+   - Check permissions are granted
+   - Query: SELECT * FROM apex_auth_v_user_permissions WHERE username = 'USER'
+
+Problem: Changes not taking effect
+Solution:
+   - Clear cache: apex_authorization_pkg.clear_cache;
+   - Logout/login to restart APEX session
+
+Problem: Package won't compile
+Solution:
+   - Check dependencies (APEX must be installed)
+   - Review errors: SELECT * FROM user_errors WHERE name = 'APEX_AUTHORIZATION_PKG'
+
+Problem: Audit log not working
+Solution:
+   - Enable: apex_authorization_pkg.set_config('ENABLE_AUDIT_LOG', 'Y')
+   - Check autonomous transaction privileges
+
+MAINTENANCE
+================================================================================
+
+Regular tasks:
+1. Monitor audit log size
+2. Archive old audit records
+3. Review expiring role assignments
+4. Check users without roles
+5. Update statistics monthly
+6. Review denied access attempts
+7. Validate object registrations match APEX
+
+Recommended monthly query:
+   -- Find unused registered objects
+   SELECT o.* 
+   FROM apex_auth_objects o
+   WHERE NOT EXISTS (
+       SELECT 1 FROM apex_auth_role_permissions rp 
+       WHERE rp.object_id = o.object_id
+   );
+
+SUPPORT & DOCUMENTATION
+================================================================================
+
+Documentation files:
+- README.md                      (Overview and quick start)
+- 05_Implementation_Guide.txt    (Detailed implementation guide)
+- Package comments               (Inline API documentation)
+
+Query package documentation:
+   SELECT text FROM user_source 
+   WHERE name = 'APEX_AUTHORIZATION_PKG' 
+   AND type = 'PACKAGE'
+   ORDER BY line;
+
+TECHNICAL SPECIFICATIONS
+================================================================================
+
+Language: Oracle PL/SQL
+Database: Oracle 19c or higher
+APEX: Oracle APEX 19.1 or higher
+Objects Created: 9 tables, 1 package, 10 views
+Lines of Code: ~3,500+ lines
+Functions: 13 public functions
+Procedures: 17 public procedures
+Exceptions: 7 custom exceptions
+
+Dependencies:
+- APEX_APPLICATION (for APEX context)
+- EXECUTE on package for APEX parsing schema
+
+Privileges Required:
+- CREATE TABLE
+- CREATE SEQUENCE (if using non-identity columns)
+- CREATE PROCEDURE
+- CREATE VIEW
+
+PRODUCTION DEPLOYMENT CHECKLIST
+================================================================================
+
+□ Test thoroughly in development environment
+□ Backup existing authorization data (if upgrading)
+□ Review and adjust Application ID in scripts
+□ Update configuration for production (audit, cache timeout)
+□ Create actual user accounts (remove/disable demo accounts)
+□ Register all actual APEX objects
+□ Configure proper permissions for each role
+□ Test with real user accounts
+□ Set up monitoring queries/alerts
+□ Document custom roles and policies
+□ Train administrators on management procedures
+□ Schedule regular audit log reviews
+□ Plan for audit log archival/purging
+□ Test emergency access procedures
+□ Document super admin account(s)
+
+CUSTOMIZATION OPPORTUNITIES
+================================================================================
+
+Potential enhancements:
+- Add role hierarchy (parent/child roles)
+- Implement approval workflows for role assignments
+- Create APEX admin UI pages for management
+- Add bulk user import functionality
+- Integrate with LDAP/Active Directory
+- Add delegation features (user A acts as user B)
+- Implement row-level security integration
+- Add notification system for expiring access
+- Create REST APIs for external integration
+- Add multi-tenancy support
+
+================================================================================
+END OF SUMMARY
+================================================================================
+
+All files are production-ready and follow Oracle and APEX best practices.
+System is fully functional and can be deployed immediately after testing.
+
+For questions or issues, refer to:
+- 05_Implementation_Guide.txt (detailed instructions)
+- README.md (overview and examples)
+- Package inline documentation (via user_source view)
