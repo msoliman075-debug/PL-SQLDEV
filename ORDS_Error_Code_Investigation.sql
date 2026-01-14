@@ -7,19 +7,35 @@
 --------------------------------------------------------------------------------
 -- PART 1: DIAGNOSTIC QUERIES
 -- Run these to identify why the endpoint returns 404
+-- NOTE: Your setup - Schema: SURETY, URL Pattern: SURETY_API
 --------------------------------------------------------------------------------
 
--- 1.1 Check if schema is REST-enabled
-SELECT schema, status, auto_rest_auth
-FROM user_ords_schemas
-WHERE schema = 'SURETY_API';
+-- 1.1 Check if schema is REST-enabled (correct column names)
+-- Option A: Using USER_ORDS_SCHEMAS (check all columns first)
+DESC user_ords_schemas;
 
--- If no rows returned, the schema is not REST-enabled
+SELECT * FROM user_ords_schemas;
+
+-- Option B: Using ORDS_SCHEMAS view (if available)
+SELECT * FROM ords_schemas WHERE parsing_schema = 'SURETY';
+
+-- Option C: Query ORDS metadata directly (works on most ORDS versions)
+SELECT ur.parsing_schema, 
+       ur.url_mapping_pattern,
+       ur.status,
+       ur.auto_rest_auth
+FROM user_ords_enabled_schemas ur;
+
+-- Option D: Check via DBA view (requires privileges)
+SELECT schema_name, url_mapping_pattern, status
+FROM dba_ords_schemas
+WHERE schema_name = 'SURETY';
 
 -- 1.2 Check all REST modules in the schema
-SELECT id, name, uri_prefix, status, items_per_page
-FROM user_ords_modules
-ORDER BY name;
+-- First, check what columns exist
+DESC user_ords_modules;
+
+SELECT * FROM user_ords_modules ORDER BY name;
 
 -- 1.3 Check REST templates (endpoints)
 SELECT m.name AS module_name, 
@@ -27,7 +43,6 @@ SELECT m.name AS module_name,
        t.priority
 FROM user_ords_modules m
 JOIN user_ords_templates t ON m.id = t.module_id
-WHERE m.name LIKE '%surety%' OR t.uri_template LIKE '%upload_policy%'
 ORDER BY m.name, t.uri_template;
 
 -- 1.4 Check REST handlers (methods like GET, POST)
@@ -38,8 +53,13 @@ SELECT m.name AS module_name,
 FROM user_ords_modules m
 JOIN user_ords_templates t ON m.id = t.module_id
 JOIN user_ords_handlers h ON t.id = h.template_id
-WHERE m.name LIKE '%surety%' OR t.uri_template LIKE '%upload_policy%'
 ORDER BY m.name, t.uri_template, h.method;
+
+-- 1.5 Quick check - List ALL ORDS-related views available
+SELECT view_name 
+FROM all_views 
+WHERE view_name LIKE '%ORDS%'
+ORDER BY view_name;
 
 --------------------------------------------------------------------------------
 -- PART 2: WHY ERROR CODE IS EMPTY
@@ -63,16 +83,29 @@ Your 404 error means ONE of these:
 
 --------------------------------------------------------------------------------
 -- PART 3: ENABLE ORDS FOR SCHEMA (if not already enabled)
+-- Your setup: Schema = SURETY, URL Pattern = SURETY_API
 --------------------------------------------------------------------------------
 
--- Run as ADMIN or DBA user
+-- Run as ADMIN or DBA user, OR connected as SURETY schema
 BEGIN
     ORDS.ENABLE_SCHEMA(
         p_enabled             => TRUE,
-        p_schema              => 'SURETY_API',
+        p_schema              => 'SURETY',           -- Your actual DB schema name
+        p_url_mapping_type    => 'BASE_PATH',
+        p_url_mapping_pattern => 'surety_api',       -- URL path (lowercase recommended)
+        p_auto_rest_auth      => FALSE               -- Set TRUE if you want authentication
+    );
+    COMMIT;
+END;
+/
+
+-- If running from SURETY schema itself (without p_schema parameter):
+BEGIN
+    ORDS.ENABLE_SCHEMA(
+        p_enabled             => TRUE,
         p_url_mapping_type    => 'BASE_PATH',
         p_url_mapping_pattern => 'surety_api',
-        p_auto_rest_auth      => FALSE  -- Set TRUE if you want authentication
+        p_auto_rest_auth      => FALSE
     );
     COMMIT;
 END;
@@ -224,6 +257,9 @@ END;
 -- PART 7: QUICK VERIFICATION COMMANDS
 --------------------------------------------------------------------------------
 
+-- First: Check available ORDS views and their columns
+SELECT view_name FROM user_views WHERE view_name LIKE 'USER_ORDS%';
+
 -- After creating the module, verify it exists:
 SELECT * FROM user_ords_modules WHERE name = 'surety.v1';
 
@@ -237,31 +273,58 @@ JOIN user_ords_templates t ON h.template_id = t.id
 JOIN user_ords_modules m ON t.module_id = m.id
 WHERE m.name = 'surety.v1';
 
+-- COMPREHENSIVE CHECK: See ALL your ORDS REST services
+SELECT 
+    m.name AS module_name,
+    m.uri_prefix AS module_base_path,
+    t.uri_template,
+    h.method,
+    h.source_type,
+    m.status AS module_status
+FROM user_ords_modules m
+LEFT JOIN user_ords_templates t ON m.id = t.module_id
+LEFT JOIN user_ords_handlers h ON t.id = h.template_id
+ORDER BY m.name, t.uri_template, h.method;
+
 --------------------------------------------------------------------------------
 -- PART 8: COMMON 404 CAUSES AND FIXES
+-- Your URL: http://ai.suretysa.com:8080/ords/surety_api/surety/upload_policy/
 --------------------------------------------------------------------------------
 /*
+YOUR URL BREAKDOWN:
+- Server: http://ai.suretysa.com:8080
+- ORDS context: /ords
+- Schema pattern: /surety_api  <-- Must match ORDS.ENABLE_SCHEMA url_mapping_pattern
+- Module base: /surety         <-- Must match module uri_prefix
+- Template: /upload_policy/    <-- Must match template uri_template
+
 CAUSE 1: URL Path Mismatch
-- Your URL: /ords/surety_api/surety/upload_policy/
-- Check schema mapping matches 'surety_api'
-- Check module base_path matches '/surety/'
-- Check template pattern matches 'upload_policy/'
+- Schema 'SURETY' must have url_mapping_pattern = 'surety_api'
+- Module must have uri_prefix = '/surety/' or 'surety/'
+- Template must have uri_template = 'upload_policy/' or 'upload_policy'
 
 CAUSE 2: Method Mismatch
 - You're calling GET but only POST handler exists
 - Solution: Add handler for the method you're using
+- Check: SELECT method FROM user_ords_handlers;
 
 CAUSE 3: Schema Not REST-Enabled
 - Run: SELECT * FROM user_ords_schemas;
 - If empty, enable the schema with ORDS.ENABLE_SCHEMA
 
 CAUSE 4: Module Not Published
-- Check: SELECT status FROM user_ords_modules;
+- Check: SELECT name, status FROM user_ords_modules;
 - Should be 'PUBLISHED', not 'NOT_PUBLISHED'
 
 CAUSE 5: Case Sensitivity
-- ORDS URLs can be case-sensitive
-- Ensure URL case matches template definition
+- ORDS URLs are case-sensitive by default!
+- URL has 'surety_api' (lowercase) - ensure schema pattern matches
+- Ensure template definition matches exact case
+
+CAUSE 6: Trailing Slash Mismatch
+- URL has trailing slash: upload_policy/
+- Template might be defined as 'upload_policy' (no slash)
+- Try both: /upload_policy/ and /upload_policy
 */
 
 --------------------------------------------------------------------------------
