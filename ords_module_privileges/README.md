@@ -1,5 +1,9 @@
 # ORDS Module Privileges - Understanding and Resolution
 
+> **⚠️ ORDS Version Note:** Column names in `USER_ORDS_*` views and table names in `ORDS_METADATA` 
+> vary between ORDS versions. Use `05_discover_ords_structure.sql` to find the exact structure 
+> for your installation.
+
 ## Problem Summary
 
 When the `SURETY` user attempts to query ORDS metadata tables directly:
@@ -120,9 +124,11 @@ GRANT SELECT ON surety.v_all_ords_modules TO surety;
 ## Verification Scripts
 
 See the accompanying SQL scripts:
-- `01_user_ords_queries.sql` - Standard queries using USER_ORDS views
-- `02_dba_grants.sql` - DBA grant scripts for direct access
+- `01_user_ords_queries.sql` - Standard queries using USER_ORDS views (uses SELECT *)
+- `02_dba_grants.sql` - DBA grant scripts for direct access (handles missing tables)
 - `03_diagnostic_queries.sql` - Diagnostic queries to check ORDS configuration
+- `04_quick_reference.sql` - ORDS PL/SQL API quick reference
+- `05_discover_ords_structure.sql` - **Run first** to discover your ORDS column/table names
 
 ## Best Practices
 

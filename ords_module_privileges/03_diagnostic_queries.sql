@@ -6,6 +6,8 @@
   
   Section A: Run as Regular User (e.g., SURETY)
   Section B: Run as SYS/DBA
+  
+  NOTE: Column names vary between ORDS versions. Uses SELECT * where possible.
 ================================================================================
 */
 
@@ -34,15 +36,13 @@ PROMPT
 PROMPT --- A2: Check current user's ORDS modules ---
 PROMPT
 
-SELECT name, uri_prefix, status 
-FROM user_ords_modules;
+SELECT * FROM user_ords_modules;
 
 PROMPT
 PROMPT --- A3: Check current schema ORDS enablement ---
 PROMPT
 
-SELECT url_mapping_type, url_mapping_pattern, auto_rest_auth
-FROM user_ords_schemas;
+SELECT * FROM user_ords_schemas;
 
 PROMPT
 PROMPT --- A4: List available ORDS-related synonyms ---
@@ -72,13 +72,8 @@ PROMPT
 PROMPT --- B2: List all ORDS-enabled schemas ---
 PROMPT
 
-SELECT 
-    s.parsing_schema,
-    s.url_mapping_type,
-    s.url_mapping_pattern,
-    s.status
-FROM ords_metadata.ords_schemas s
-ORDER BY s.parsing_schema;
+SELECT * FROM ords_metadata.ords_schemas
+ORDER BY 1;
 
 PROMPT
 PROMPT --- B3: List all ORDS modules across all schemas ---
@@ -121,16 +116,16 @@ FROM dba_users
 WHERE username = 'ORDS_PUBLIC_USER';
 
 PROMPT
-PROMPT --- B6: Verify ORDS_METADATA objects ---
+PROMPT --- B6: Verify ORDS_METADATA objects (tables and views) ---
 PROMPT
 
 SELECT 
-    object_type,
-    COUNT(*) AS object_count
+    object_name,
+    object_type
 FROM dba_objects
 WHERE owner = 'ORDS_METADATA'
-GROUP BY object_type
-ORDER BY object_type;
+AND object_type IN ('TABLE', 'VIEW')
+ORDER BY object_type, object_name;
 
 PROMPT
 PROMPT --- B7: Check PUBLIC synonyms for USER_ORDS views ---
@@ -147,51 +142,37 @@ AND synonym_name LIKE 'USER_ORDS%'
 ORDER BY synonym_name;
 
 PROMPT
-PROMPT --- B8: Check if SURETY schema is ORDS-enabled ---
-PROMPT
-
-SELECT 
-    parsing_schema,
-    url_mapping_type,
-    url_mapping_pattern,
-    status,
-    auto_rest_auth
-FROM ords_metadata.ords_schemas
-WHERE parsing_schema = 'SURETY';
-
-PROMPT
-PROMPT --- B9: Full module details for SURETY ---
+PROMPT --- B8: Check SURETY modules with templates and handlers ---
 PROMPT
 
 SELECT 
     s.parsing_schema,
     m.name AS module_name,
     m.uri_prefix,
-    m.status,
-    m.items_per_page,
-    t.uri_template,
-    h.method,
-    h.source_type
+    m.status
 FROM ords_metadata.ords_modules m
 JOIN ords_metadata.ords_schemas s ON m.schema_id = s.id
-LEFT JOIN ords_metadata.ords_templates t ON t.module_id = m.id
-LEFT JOIN ords_metadata.ords_handlers h ON h.template_id = t.id
 WHERE s.parsing_schema = 'SURETY'
-ORDER BY m.name, t.uri_template, h.method;
+ORDER BY m.name;
 
 PROMPT
-PROMPT --- B10: Check role and privilege assignments ---
+PROMPT --- B9: List all ORDS_METADATA tables (for grant reference) ---
 PROMPT
 
-SELECT 
-    r.name AS role_name,
-    p.name AS privilege_name,
-    pm.pattern AS url_pattern
-FROM ords_metadata.ords_roles r
-LEFT JOIN ords_metadata.ords_privilege_roles pr ON r.id = pr.role_id
-LEFT JOIN ords_metadata.ords_privileges p ON p.id = pr.privilege_id
-LEFT JOIN ords_metadata.ords_privilege_mappings pm ON p.id = pm.privilege_id
-ORDER BY r.name, p.name;
+SELECT table_name 
+FROM dba_tables 
+WHERE owner = 'ORDS_METADATA'
+ORDER BY table_name;
+
+PROMPT
+PROMPT --- B10: Check column names in key ORDS_METADATA tables ---
+PROMPT
+
+SELECT table_name, column_name, data_type
+FROM dba_tab_columns
+WHERE owner = 'ORDS_METADATA'
+AND table_name IN ('ORDS_MODULES', 'ORDS_SCHEMAS', 'ORDS_TEMPLATES', 'ORDS_HANDLERS')
+ORDER BY table_name, column_id;
 
 PROMPT
 PROMPT ============================================================

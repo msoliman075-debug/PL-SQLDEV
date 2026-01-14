@@ -7,10 +7,12 @@
   
   WARNING: These grants expose ALL ORDS metadata across ALL schemas!
            Only use for administrative users who need cross-schema visibility.
+  
+  NOTE: Table names vary between ORDS versions. This script uses PL/SQL
+        to safely grant on tables that exist, ignoring missing ones.
 ================================================================================
 */
 
-SET ECHO ON
 SET SERVEROUTPUT ON
 
 PROMPT ============================================================
@@ -22,21 +24,49 @@ PROMPT           for ALL schemas, not just their own!
 PROMPT
 PROMPT ============================================================
 
--- Core module tables
-GRANT SELECT ON ords_metadata.ords_modules TO surety;
-GRANT SELECT ON ords_metadata.ords_schemas TO surety;
-GRANT SELECT ON ords_metadata.ords_templates TO surety;
-GRANT SELECT ON ords_metadata.ords_handlers TO surety;
-GRANT SELECT ON ords_metadata.ords_parameters TO surety;
+-- Safe grant procedure that handles missing tables
+DECLARE
+    PROCEDURE safe_grant(p_table_name VARCHAR2, p_grantee VARCHAR2) IS
+    BEGIN
+        EXECUTE IMMEDIATE 'GRANT SELECT ON ords_metadata.' || p_table_name || ' TO ' || p_grantee;
+        DBMS_OUTPUT.PUT_LINE('GRANTED SELECT ON ords_metadata.' || p_table_name || ' TO ' || p_grantee);
+    EXCEPTION
+        WHEN OTHERS THEN
+            IF SQLCODE = -942 THEN
+                DBMS_OUTPUT.PUT_LINE('SKIPPED: ords_metadata.' || p_table_name || ' does not exist');
+            ELSE
+                DBMS_OUTPUT.PUT_LINE('ERROR on ' || p_table_name || ': ' || SQLERRM);
+            END IF;
+    END;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('');
+    DBMS_OUTPUT.PUT_LINE('=== Granting ORDS_METADATA access to SURETY ===');
+    DBMS_OUTPUT.PUT_LINE('');
+    
+    -- Core module tables (most ORDS versions)
+    safe_grant('ords_modules', 'surety');
+    safe_grant('ords_schemas', 'surety');
+    safe_grant('ords_templates', 'surety');
+    safe_grant('ords_handlers', 'surety');
+    safe_grant('ords_parameters', 'surety');
+    
+    -- URL mapping tables
+    safe_grant('ords_url_mappings', 'surety');
+    safe_grant('ords_privilege_mappings', 'surety');
+    
+    -- Security tables (may not exist in all versions)
+    safe_grant('ords_privileges', 'surety');
+    safe_grant('ords_roles', 'surety');
+    safe_grant('ords_privilege_roles', 'surety');
+    safe_grant('ords_clients', 'surety');
+    safe_grant('ords_client_roles', 'surety');
+    
+    DBMS_OUTPUT.PUT_LINE('');
+    DBMS_OUTPUT.PUT_LINE('=== Grant process complete ===');
+END;
+/
 
--- Security tables
-GRANT SELECT ON ords_metadata.ords_privileges TO surety;
-GRANT SELECT ON ords_metadata.ords_roles TO surety;
-GRANT SELECT ON ords_metadata.ords_privilege_roles TO surety;
-GRANT SELECT ON ords_metadata.ords_privilege_mappings TO surety;
-
--- URL mapping tables
-GRANT SELECT ON ords_metadata.ords_url_mappings TO surety;
+COMMIT;
 
 PROMPT
 PROMPT ============================================================
